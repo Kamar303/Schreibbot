@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handschrift – kostenlos & privat</title>
+<meta name="description" content="Kostenloser Handschrift-Generator. Deine Handschrift bleibt auf deinem Gerät.">
+<style>
+:root{
+  --bg:#f5f7fb;--card:#fff;--ink:#172033;--muted:#667085;--line:#e5e7eb;
+  --accent:#5b5cf0;--accent2:#7c3aed;--good:#16855b;--paper:#fff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav{max-width:1200px;margin:auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.logo{font-weight:850;font-size:20px;letter-spacing:-.03em}.logo span{color:var(--accent)}
+.badge{font-size:12px;padding:6px 10px;border-radius:999px;background:#ecfdf3;color:var(--good);font-weight:700}
+main{max-width:1200px;margin:30px auto;padding:0 20px}
+.hero h1{font-size:clamp(30px,5vw,54px);line-height:1.02;margin:0 0 10px;letter-spacing:-.045em}
+.hero p{color:var(--muted);margin:0 0 24px;font-size:16px}
+.grid{display:grid;grid-template-columns:1fr 1.05fr;gap:22px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 6px 24px rgba(16,24,40,.05);padding:20px}
+label{display:block;font-weight:700;font-size:13px;margin-bottom:8px}
+textarea,select,input[type="color"],input[type="range"]{width:100%}
+textarea{min-height:240px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:16px;font:inherit;line-height:1.5;outline:none}
+textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,92,240,.12)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.control{padding:12px;background:#fafafa;border:1px solid var(--line);border-radius:12px}
+select{padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.rangeRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.value{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}
+.primary{background:var(--accent);color:#fff}.secondary{background:#eef2ff;color:#3537a8}.ghost{background:#f3f4f6;color:#293042}
+button:active{transform:translateY(1px)}
+.small{font-size:12px;color:var(--muted);margin-top:10px}
+.previewWrap{display:flex;justify-content:center;background:#eef1f6;padding:20px;border-radius:14px;overflow:auto}
+canvas#paper{width:min(100%,560px);height:auto;background:var(--paper);box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.sectionTitle{font-weight:850;font-size:18px;margin:0 0 5px}.sectionText{font-size:13px;color:var(--muted);margin:0 0 14px}
+.security{margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.security .item{padding:14px;border:1px solid var(--line);border-radius:12px;background:#fbfffd}
+.security b{display:block;margin-bottom:4px}.security span{font-size:12px;color:var(--muted)}
+#setup{margin-top:22px}
+.setupHeader{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:12px}
+.charGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:7px;max-height:205px;overflow:auto;padding:2px}
+.charBtn{padding:9px 0;background:#f5f6f8;border:1px solid var(--line);font-size:15px}
+.charBtn.active{background:#eef2ff;border-color:#8789f8;color:#3637ab}
+.drawBox{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.drawArea{background:#fafafa;border:1px solid var(--line);border-radius:14px;padding:12px}
+#drawCanvas{width:100%;height:210px;background:#fff;border:1px dashed #cfd4dc;border-radius:12px;touch-action:none}
+.drawActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.status{font-size:12px;color:var(--muted);margin-top:8px}
+footer{max-width:1200px;margin:35px auto;padding:0 20px 30px;color:var(--muted);font-size:12px;text-align:center}
+.kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;padding:2px 5px;border:1px solid var(--line);border-radius:5px;background:#fff}
+@media (max-width:900px){.grid{grid-template-columns:1fr}.security{grid-template-columns:1fr}.drawBox{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){main{padding:0 12px}.nav{padding:12px}.card{padding:15px}}
+
+.freehandBox{margin:14px 0 16px;border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcff}
+.freehandHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.freehandBadge{font-size:11px;font-weight:800;color:#3537a8;background:#eef2ff;border-radius:999px;padding:6px 9px;white-space:nowrap}
+.linePreviewWrap{margin-top:11px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}
+.linePreviewLabel{font-size:11px;font-weight:800;color:var(--muted);margin:0 0 3px 2px}
+#handLine{display:block;width:100%;height:88px;background:#fff;border-radius:9px}
+.freehandCanvasWrap{position:relative;margin-top:10px;border:1px dashed #cfd4dc;border-radius:12px;overflow:hidden;background:#fff}
+#handInput{display:block;width:100%;height:220px;touch-action:none;cursor:crosshair}
+.writeHint{position:absolute;right:10px;top:10px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.86);font-size:11px;color:#98a2b3;pointer-events:none}
+@media (max-width:520px){.freehandHead{display:block}.freehandBadge{display:inline-block;margin-top:7px}#handInput{height:190px}#handLine{height:78px}}
+
+.scannerSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.scannerStep{padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcff}
+.scannerStep b{display:block;margin-bottom:4px}.scannerStep span{font-size:12px;color:var(--muted)}
+.scannerTools{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.scanPreview{background:#eef1f6;border-radius:12px;padding:12px;min-height:280px;display:flex;align-items:center;justify-content:center;overflow:auto}
+#scanCanvas{width:100%;max-width:650px;height:auto;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.sliderGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.fileBtn{display:inline-flex;align-items:center;justify-content:center;background:#eef2ff;color:#3537a8;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer}
+.fileBtn input{display:none}
+.scannerNote{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px}
+.scanStatus{font-size:13px;color:var(--muted);margin-top:10px;min-height:20px}
+@media (max-width:900px){.scannerTools{grid-template-columns:1fr}.scannerSteps{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="nav">
+    <div class="logo">Handschrift<span>.</span></div>
+    <div class="badge">🔒 100 % lokal</div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Tippen. Deine Handschrift. Fertig.</h1>
+    <p>Schreibe Text am Gerät und rendere ihn mit deinem eigenen Handschrift-Profil – kostenlos, ohne Konto und ohne Upload.</p>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="sectionTitle">Dein Text</div>
+      <div class="sectionText">Alles bleibt auf diesem Gerät.</div>
+
+      <div class="freehandBox">
+        <div class="freehandHead">
+          <div>
+            <label style="margin:0">Handschrift direkt zeichnen</label>
+            <div class="small" style="margin-top:3px">Zeichne mit Finger, S Pen, Maus oder Trackpad irgendwo ins Feld. Die Zeichnung wird automatisch zugeschnitten, auf eine einheitliche Höhe skaliert und oben an einer Linie ausgerichtet.</div>
+          </div>
+          <span class="freehandBadge">Live-Ausrichtung</span>
+        </div>
+        <div class="linePreviewWrap">
+          <div class="linePreviewLabel">So erscheint sie in einer Linie</div>
+          <canvas id="handLine" width="1100" height="150"></canvas>
+        </div>
+        <div class="freehandCanvasWrap">
+          <canvas id="handInput" width="1100" height="320"></canvas>
+          <div class="writeHint">Hier zeichnen – Position ist egal</div>
+        </div>
+        <div class="btns" style="margin-top:10px">
+          <button class="secondary" id="handDownload">Handschrift-Zeile PNG</button>
+          <button class="ghost" id="handClear">Zeichenfläche leeren</button>
+        </div>
+        <div class="small">Die Zeichnung bleibt lokal im Browser. Sie wird nicht automatisch in Text umgewandelt; dafür ist ein OCR-/Handschrift-Erkennungsmodell nötig.</div>
+      </div>
+
+      <textarea id="text" placeholder="Schreibe hier deinen Text …">Hallo! Das ist meine eigene Handschrift.
+
+Ich kann Text tippen und ihn direkt wie handgeschrieben auf Papier darstellen.</textarea>
+
+      <div class="controls">
+        <div class="control">
+          <label for="paperStyle">Papier</label>
+          <select id="paperStyle">
+            <option value="lined">Liniert</option>
+            <option value="plain">Blanko</option>
+            <option value="grid">Kariert</option>
+            <option value="dots">Punkte</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="ink">Tinte</label>
+          <input id="ink" type="color" value="#111827" title="Tintenfarbe">
+        </div>
+        <div class="control">
+          <label>Schriftgröße</label>
+          <div class="rangeRow"><input id="size" type="range" min="22" max="64" value="36"><span class="value" id="sizeV">36 px</span></div>
+        </div>
+        <div class="control">
+          <label>Natürlichkeit</label>
+          <div class="rangeRow"><input id="jitter" type="range" min="0" max="30" value="9"><span class="value" id="jitterV">9 %</span></div>
+        </div>
+        <div class="control">
+          <label>Zeichenabstand</label>
+          <div class="rangeRow"><input id="spacing" type="range" min="-3" max="14" value="2"><span class="value" id="spacingV">2 px</span></div>
+        </div>
+        <div class="control">
+          <label>Zeilenabstand</label>
+          <div class="rangeRow"><input id="line" type="range" min="1.1" max="2.2" step=".05" value="1.55"><span class="value" id="lineV">1.55×</span></div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="png">PNG speichern</button>
+        <button class="secondary" id="print">Drucken / PDF</button>
+        <button class="ghost" id="clear">Text leeren</button>
+      </div>
+      <div class="small">Tipp: Mit <span class="kbd">Strg</span> + <span class="kbd">P</span> kannst du den Ausdruck/PDF-Dialog öffnen.</div>
+    </section>
+
+    <section class="card">
+      <div class="sectionTitle">Live-Vorschau</div>
+      <div class="sectionText">Die Exportansicht entspricht dieser Seite.</div>
+      <div class="previewWrap"><canvas id="paper" width="1240" height="1754"></canvas></div>
+    </section>
+  </div>
+
+  <section class="security">
+    <div class="item"><b>🔒 Lokal</b><span>Text und Handschriftprofil werden nur im Browser verarbeitet.</span></div>
+    <div class="item"><b>🚫 Kein Konto</b><span>Keine Anmeldung, keine Credits, keine Zahlungsfunktion.</span></div>
+    <div class="item"><b>🧹 Löschbar</b><span>Profil jederzeit mit einem Klick vom Gerät löschen.</span></div>
+  </section>
+
+  <section class="card" id="setup">
+    <div class="setupHeader">
+      <div>
+        <div class="sectionTitle">Deine Handschrift einrichten</div>
+        <p class="sectionText">Zeichne Zeichen einzeln. Die Daten werden als Striche gespeichert, nicht als Bild.</p>
+      </div>
+      <button class="ghost" id="resetProfile">Profil löschen</button>
+    </div>
+
+    <label>Zeichen auswählen</label>
+    <div id="charGrid" class="charGrid"></div>
+
+    <div class="drawBox">
+      <div class="drawArea">
+        <label>Zeichen: <span id="currentChar" style="font-size:18px"></span></label>
+        <canvas id="drawCanvas" width="720" height="420"></canvas>
+        <div class="drawActions">
+          <button class="secondary" id="saveChar">Zeichen speichern</button>
+          <button class="ghost" id="eraseChar">Zeichen löschen</button>
+          <button class="ghost" id="nextChar">Nächstes</button>
+        </div>
+        <div class="status" id="charStatus"></div>
+      </div>
+      <div class="drawArea">
+        <label>Empfohlener Start</label>
+        <div style="font-size:14px;line-height:1.7;color:var(--muted)">
+          Zeichne zuerst häufige Zeichen wie <b>a, e, i, n, r, s, t, l, h</b> und die Großbuchstaben.<br><br>
+          Für jede Lücke wird automatisch ein kleiner Abstand eingesetzt. Fehlende Zeichen können weiterhin über eine neutrale Fallback-Schrift gerendert werden.
+        </div>
+        <div class="btns" style="margin-top:14px">
+          <button class="primary" id="autoSet">Beispielprofil einsetzen</button>
+        </div>
+        <div class="small">Das Beispielprofil ist nur zum Testen. Es ersetzt deine eigene Handschrift erst, wenn du es auswählst.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+  <section class="card" id="scanner">
+    <div class="sectionTitle">📷 Handschrift-Scanner</div>
+    <p class="sectionText">Dein Foto wird direkt auf deinem Gerät verarbeitet. Es wird nichts hochgeladen.</p>
+    <div class="scannerSteps">
+      <div class="scannerStep"><b>1. Vorlage</b><span>Vorlage öffnen, ausdrucken und jedes Zeichen genau einmal in sein Feld schreiben.</span></div>
+      <div class="scannerStep"><b>2. Foto</b><span>Die ganze Seite möglichst gerade und ohne starken Schatten fotografieren.</span></div>
+      <div class="scannerStep"><b>3. Scannen</b><span>Foto auswählen und „Handschrift erkennen“ drücken. Das Profil wird lokal gespeichert.</span></div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="template">🖨 Vorlage drucken</button>
+      <label class="fileBtn">📂 Foto auswählen<input id="scanFile" type="file" accept="image/*"></label>
+      <button class="secondary" id="scanStart" disabled>✨ Handschrift erkennen</button>
+    </div>
+    <div class="scannerTools">
+      <div class="scanPreview"><canvas id="scanCanvas" width="1000" height="1414"></canvas></div>
+      <div>
+        <div class="control"><label>Seitenrand</label><div class="rangeRow"><input id="scanMargin" type="range" min="0" max="10" value="4" step="0.5"><span class="value" id="scanMarginV">4 %</span></div></div>
+        <div class="control" style="margin-top:10px"><label>Abstand oben (Titelbereich)</label><div class="rangeRow"><input id="scanTop" type="range" min="6" max="15" value="9" step="0.5"><span class="value" id="scanTopV">9 %</span></div></div>
+        <div class="control" style="margin-top:10px"><label>Abstand unten</label><div class="rangeRow"><input id="scanBottom" type="range" min="2" max="12" value="5" step="0.5"><span class="value" id="scanBottomV">5 %</span></div></div>
+        <div class="control" style="margin-top:10px"><label>Tinten-Erkennung</label><div class="rangeRow"><input id="scanThreshold" type="range" min="20" max="90" value="55" step="1"><span class="value" id="scanThresholdV">55</span></div></div>
+        <div class="btns">
+          <button class="ghost" id="scanClear">Foto entfernen</button>
+        </div>
+        <div class="scannerNote">Die automatische Erkennung erwartet das mitgelieferte Raster (8 Spalten × 12 Zeilen). Bei einem schrägen Foto können Rand, Kopf- und Fußbereich angepasst werden. Für beste Ergebnisse: dunkler Stift, weißes Papier, gute Beleuchtung.</div>
+        <div class="scanStatus" id="scanStatus">Noch kein Foto ausgewählt.</div>
+      </div>
+    </div>
+  </section>
+
+<footer>Handschrift. Kostenloses Demo-Projekt · Keine externen Skripte · Keine Analyse- oder Werbetracker · Text und Handschrift bleiben lokal im Browser</footer>
+
+<script>
+(() => {
+  "use strict";
+
+  const textEl = document.getElementById("text");
+  const paperEl = document.getElementById("paper");
+  const pctx = paperEl.getContext("2d");
+  const drawEl = document.getElementById("drawCanvas");
+  const dctx = drawEl.getContext("2d");
+  const chars = Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß0123456789.,;:!?+-*/=()[]{}%&€@#'\"–—_");
+  const fallback = "cursive";
+
+  let selected = "a";
+  let drawing = false;
+  let strokes = [];
+  let currentStroke = [];
+  let profile = loadProfile();
+
+  // ---------- Freehand input line ----------
+  const handInput = document.getElementById('handInput');
+  const handLine = document.getElementById('handLine');
+  const hctx = handInput.getContext('2d');
+  const lctx = handLine.getContext('2d');
+  let freehandStrokes = [];
+  let freehandCurrent = [];
+  let freehandDrawing = false;
+
+  function freehandPos(e){
+    const r=handInput.getBoundingClientRect();
+    return [(e.clientX-r.left)*(handInput.width/r.width),(e.clientY-r.top)*(handInput.height/r.height)];
+  }
+  function drawFreehandBoard(){
+    hctx.clearRect(0,0,handInput.width,handInput.height);
+    hctx.fillStyle='#fff'; hctx.fillRect(0,0,handInput.width,handInput.height);
+    hctx.strokeStyle='#e4e7ec'; hctx.lineWidth=2;
+    hctx.setLineDash([8,8]);
+    hctx.beginPath(); hctx.moveTo(24,handInput.height/2); hctx.lineTo(handInput.width-24,handInput.height/2); hctx.stroke();
+    hctx.setLineDash([]);
+    hctx.strokeStyle=document.getElementById('ink').value; hctx.lineWidth=7; hctx.lineCap='round'; hctx.lineJoin='round';
+    for(const st of freehandStrokes){
+      if(st.length<2) continue;
+      hctx.beginPath();hctx.moveTo(st[0][0],st[0][1]);
+      for(let i=1;i<st.length;i++) hctx.lineTo(st[i][0],st[i][1]);
+      hctx.stroke();
+    }
+  }
+  function freehandBounds(){
+    const pts=freehandStrokes.flat();
+    if(!pts.length) return null;
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const [x,y] of pts){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}
+    return {minX,minY,maxX,maxY,w:Math.max(1,maxX-minX),h:Math.max(1,maxY-minY)};
+  }
+  function renderFreehandLine(){
+    const w=handLine.width,h=handLine.height;
+    lctx.clearRect(0,0,w,h); lctx.fillStyle='#fff'; lctx.fillRect(0,0,w,h);
+    // A clean baseline means the drawing is always displayed in the same place,
+    // regardless of where the user originally drew it.
+    lctx.strokeStyle='#dbe5f2'; lctx.lineWidth=2;
+    lctx.beginPath(); lctx.moveTo(18,h-22); lctx.lineTo(w-18,h-22); lctx.stroke();
+    const b=freehandBounds();
+    if(!b) return;
+    const pad=18, targetH=Math.min(88,h-36);
+    const scale=Math.min(targetH/b.h,(w-pad*2)/b.w);
+    const ox=pad-b.minX*scale;
+    const oy=(h-22)-b.maxY*scale;
+    lctx.save();
+    lctx.translate(ox,oy); lctx.scale(scale,scale);
+    lctx.strokeStyle=document.getElementById('ink').value; lctx.lineWidth=7/scale; lctx.lineCap='round'; lctx.lineJoin='round';
+    for(const st of freehandStrokes){
+      if(st.length<2) continue;
+      lctx.beginPath(); lctx.moveTo(st[0][0],st[0][1]);
+      for(let i=1;i<st.length;i++) lctx.lineTo(st[i][0],st[i][1]);
+      lctx.stroke();
+    }
+    lctx.restore();
+  }
+  function redrawFreehand(){ drawFreehandBoard(); renderFreehandLine(); }
+  handInput.addEventListener('pointerdown',e=>{
+    freehandDrawing=true; handInput.setPointerCapture(e.pointerId); freehandCurrent=[freehandPos(e)];
+  });
+  handInput.addEventListener('pointermove',e=>{
+    if(!freehandDrawing) return;
+    freehandCurrent.push(freehandPos(e));
+    drawFreehandBoard();
+    const st=freehandCurrent, a=st[st.length-2],b=st[st.length-1];
+    hctx.strokeStyle=document.getElementById('ink').value; hctx.lineWidth=7; hctx.lineCap='round'; hctx.lineJoin='round';
+    hctx.beginPath();hctx.moveTo(a[0],a[1]);hctx.lineTo(b[0],b[1]);hctx.stroke();
+    freehandStrokes=freehandStrokes.slice(0,-1).concat();
+    const temp=freehandStrokes.concat([freehandCurrent]);
+    const old=freehandStrokes; freehandStrokes=temp; renderFreehandLine(); freehandStrokes=old;
+  });
+  function finishFreehand(){
+    if(!freehandDrawing) return; freehandDrawing=false;
+    if(freehandCurrent.length>1) freehandStrokes.push(freehandCurrent);
+    freehandCurrent=[]; redrawFreehand();
+  }
+  handInput.addEventListener('pointerup',finishFreehand);
+  handInput.addEventListener('pointercancel',finishFreehand);
+  document.getElementById('handClear').onclick=()=>{freehandStrokes=[];freehandCurrent=[];redrawFreehand();};
+  document.getElementById('handDownload').onclick=()=>{
+    renderFreehandLine();
+    const a=document.createElement('a'); a.download='meine-handschrift-zeile.png'; a.href=handLine.toDataURL('image/png'); a.click();
+  };
+
+  function loadProfile(){
+    try { return JSON.parse(localStorage.getItem("hs-profile-v1") || "{}") || {}; } catch(e) { return {}; }
+  }
+  function saveProfile(){ localStorage.setItem("hs-profile-v1", JSON.stringify(profile)); }
+  function rng(a,b){ return a + Math.random()*(b-a); }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+  function makeGrid(){
+    const grid = document.getElementById("charGrid");
+    grid.innerHTML = "";
+    chars.forEach(ch => {
+      const b = document.createElement("button");
+      b.className = "charBtn" + (ch===selected ? " active":"");
+      b.textContent = ch === " " ? "␠" : ch;
+      b.title = profile[ch] ? "Gespeichert" : "Noch nicht gespeichert";
+      b.onclick = () => selectChar(ch);
+      grid.appendChild(b);
+    });
+  }
+  function selectChar(ch){
+    selected = ch;
+    document.getElementById("currentChar").textContent = ch;
+    strokes = profile[ch] ? JSON.parse(JSON.stringify(profile[ch])) : [];
+    drawEl.width = 720; drawEl.height = 420;
+    drawCanvasBackground();
+    redrawDrawing();
+    document.getElementById("charStatus").textContent = profile[ch] ? "Gespeichert – du kannst neu zeichnen und überschreiben." : "Noch nicht gespeichert.";
+    document.querySelectorAll(".charBtn").forEach((b,i)=>b.classList.toggle("active", chars[i]===ch));
+  }
+  function drawCanvasBackground(){
+    dctx.clearRect(0,0,drawEl.width,drawEl.height);
+    dctx.fillStyle="#fff"; dctx.fillRect(0,0,drawEl.width,drawEl.height);
+    dctx.strokeStyle="#e7ebf0"; dctx.lineWidth=2;
+    for(let y=340;y<drawEl.height;y+=52){ dctx.beginPath(); dctx.moveTo(0,y); dctx.lineTo(drawEl.width,y); dctx.stroke(); }
+  }
+  function redrawDrawing(){
+    dctx.strokeStyle = document.getElementById("ink").value;
+    dctx.lineWidth = 8; dctx.lineCap="round"; dctx.lineJoin="round";
+    for(const st of strokes){
+      if(st.length<2) continue;
+      dctx.beginPath(); dctx.moveTo(st[0][0],st[0][1]);
+      for(let i=1;i<st.length;i++) dctx.lineTo(st[i][0],st[i][1]);
+      dctx.stroke();
+    }
+  }
+  function pos(e){
+    const r=drawEl.getBoundingClientRect();
+    return [(e.clientX-r.left)*(drawEl.width/r.width),(e.clientY-r.top)*(drawEl.height/r.height)];
+  }
+  drawEl.addEventListener("pointerdown", e => { drawing=true; drawEl.setPointerCapture(e.pointerId); currentStroke=[]; currentStroke.push(pos(e)); });
+  drawEl.addEventListener("pointermove", e => {
+    if(!drawing) return;
+    const q=pos(e); currentStroke.push(q);
+    if(currentStroke.length>1){
+      const a=currentStroke[currentStroke.length-2], b=currentStroke[currentStroke.length-1];
+      dctx.strokeStyle=document.getElementById("ink").value; dctx.lineWidth=8; dctx.lineCap="round";
+      dctx.beginPath(); dctx.moveTo(a[0],a[1]); dctx.lineTo(b[0],b[1]); dctx.stroke();
+    }
+  });
+  drawEl.addEventListener("pointerup", ()=>{ drawing=false; if(currentStroke.length>1) strokes.push(currentStroke); });
+  drawEl.addEventListener("pointercancel", ()=>{ drawing=false; });
+
+  document.getElementById("saveChar").onclick = () => {
+    if(!strokes.length){ document.getElementById("charStatus").textContent="Bitte erst etwas zeichnen."; return; }
+    profile[selected] = strokes; saveProfile(); makeGrid();
+    document.getElementById("charStatus").textContent="Gespeichert. Die Vorschau nutzt jetzt dieses Zeichen.";
+    render();
+  };
+  document.getElementById("eraseChar").onclick = () => {
+    strokes=[]; profile[selected]=undefined; delete profile[selected]; saveProfile(); drawCanvasBackground(); makeGrid();
+    document.getElementById("charStatus").textContent="Zeichen gelöscht.";
+    render();
+  };
+  document.getElementById("nextChar").onclick = () => {
+    const i=chars.indexOf(selected); selectChar(chars[(i+1)%chars.length]);
+  };
+  document.getElementById("resetProfile").onclick = () => {
+    if(confirm("Das komplette Handschriftprofil auf diesem Gerät löschen?")){
+      profile={}; saveProfile(); selectChar("a"); makeGrid(); render();
+    }
+  };
+
+  function normalizeGlyph(st){
+    if(!st || !st.length) return null;
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    st.flat().forEach(p=>{minX=Math.min(minX,p[0]);minY=Math.min(minY,p[1]);maxX=Math.max(maxX,p[0]);maxY=Math.max(maxY,p[1]);});
+    const h=Math.max(1,maxY-minY), w=Math.max(1,maxX-minX);
+    return {st, minX,minY,w,h};
+  }
+
+  const rasterCache = new Map();
+  function getRasterImage(ch, profileGlyph, ink){
+    const key = ch + '|' + ink;
+    if(rasterCache.has(key)) return rasterCache.get(key);
+    const img = new Image();
+    img.onload = () => render();
+    img.src = profileGlyph.data;
+    const tintCanvas = document.createElement('canvas');
+    const makeTinted = () => {
+      tintCanvas.width = img.naturalWidth || profileGlyph.w || 64;
+      tintCanvas.height = img.naturalHeight || profileGlyph.h || 64;
+      const tc=tintCanvas.getContext('2d');
+      tc.clearRect(0,0,tintCanvas.width,tintCanvas.height);
+      tc.drawImage(img,0,0);
+      tc.globalCompositeOperation='source-in';
+      tc.fillStyle=ink; tc.fillRect(0,0,tintCanvas.width,tintCanvas.height);
+      rasterCache.set(key,tintCanvas);
+      render();
+    };
+    if(img.complete) makeTinted(); else img.addEventListener('load',makeTinted,{once:true});
+    return null;
+  }
+
+  function drawGlyph(ctx, ch, x, baseline, size, jitterPct, ink){
+    const pg=profile[ch];
+    if(pg && pg.type==='raster'){
+      const tinted=getRasterImage(ch,pg,ink);
+      if(!tinted) return Math.max(size*.3, (pg.w/Math.max(1,pg.h))*size*.78);
+      const targetH=size*.82, targetW=targetH*(pg.w/Math.max(1,pg.h));
+      const j=jitterPct/100;
+      ctx.save();
+      ctx.translate(x+rng(-size*.02,size*.02)*j, baseline+rng(-size*.045,size*.045)*j);
+      ctx.rotate(rng(-.018,.018)*jitterPct/9);
+      ctx.scale(1+rng(-.04,.04)*j,1+rng(-.03,.03)*j);
+      ctx.drawImage(tinted,0,-targetH,targetW,targetH);
+      ctx.restore();
+      return Math.max(size*.3,targetW*.94);
+    }
+    const g=normalizeGlyph(pg);
+    if(!g){
+      ctx.save();
+      ctx.fillStyle=ink;
+      ctx.font=`${Math.round(size)}px ${fallback}`;
+      ctx.textBaseline='alphabetic';
+      ctx.fillText(ch,x,baseline);
+      const m=ctx.measureText(ch);
+      ctx.restore();
+      return Math.max(size*.25,m.width);
+    }
+    const scale=size/g.h*0.82;
+    const j=jitterPct/100;
+    const angle=rng(-.018,.018)*jitterPct/9;
+    const sx=1+rng(-.05,.05)*j, sy=1+rng(-.035,.035)*j;
+    ctx.save();
+    ctx.translate(x+rng(-size*.02,size*.02)*j, baseline+rng(-size*.045,size*.045)*j);
+    ctx.rotate(angle); ctx.scale(scale*sx,scale*sy); ctx.translate(-g.minX,-g.maxY);
+    ctx.strokeStyle=ink; ctx.lineWidth=8; ctx.lineCap='round'; ctx.lineJoin='round';
+    for(const st of g.st){
+      if(st.length<2) continue;
+      ctx.beginPath(); ctx.moveTo(st[0][0],st[0][1]);
+      for(let i=1;i<st.length;i++) ctx.lineTo(st[i][0],st[i][1]);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return Math.max(size*.28,g.w*scale*.92);
+  }
+
+  function drawPaper(ctx,w,h,style){
+    ctx.fillStyle=document.getElementById("paperStyle").value==="plain" ? "#fff" : "#fff";
+    ctx.fillRect(0,0,w,h);
+    ctx.save();
+    ctx.lineWidth=1;
+    if(style==="lined"){
+      ctx.strokeStyle="#dce8f7";
+      for(let y=90;y<h-70;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+      ctx.strokeStyle="#f0caca";ctx.beginPath();ctx.moveTo(110,0);ctx.lineTo(110,h);ctx.stroke();
+    } else if(style==="grid"){
+      ctx.strokeStyle="#e7ebf2";
+      for(let y=35;y<h;y+=35){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+      for(let x=35;x<w;x+=35){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    } else if(style==="dots"){
+      ctx.fillStyle="#d8dde6";
+      for(let y=32;y<h;y+=32) for(let x=32;x<w;x+=32){ctx.beginPath();ctx.arc(x,y,1.4,0,Math.PI*2);ctx.fill();}
+    }
+    ctx.restore();
+  }
+
+  function render(){
+    const w=paperEl.width, h=paperEl.height, size=Number(document.getElementById("size").value);
+    const lineMul=Number(document.getElementById("line").value), jitter=Number(document.getElementById("jitter").value);
+    const spacing=Number(document.getElementById("spacing").value), ink=document.getElementById("ink").value;
+    drawPaper(pctx,w,h,document.getElementById("paperStyle").value);
+    pctx.save(); pctx.beginPath(); pctx.rect(90,50,w-150,h-90); pctx.clip();
+    const maxX=w-130; let x=135, y=150;
+    const lines=textEl.value.replace(/\r/g,"").split("\n");
+    const lineH=size*lineMul;
+    for(const line of lines){
+      x=135;
+      for(const ch of line){
+        if(ch===" "){ x += size*.42 + spacing; continue; }
+        const adv=drawGlyph(pctx,ch,x,y,size,jitter,ink)+spacing+rng(-.8,.8)*(jitter/10);
+        if(x+adv>maxX){ y+=lineH; x=135; }
+        drawGlyph(pctx,ch,x,y,size,jitter,ink);
+        x+=adv;
+      }
+      y+=lineH;
+      if(y>h-90) break;
+    }
+    pctx.restore();
+  }
+
+  // Fix double-render in wrapping by a safer second implementation.
+  function render(){
+    const w=paperEl.width, h=paperEl.height, size=Number(document.getElementById("size").value);
+    const lineMul=Number(document.getElementById("line").value), jitter=Number(document.getElementById("jitter").value);
+    const spacing=Number(document.getElementById("spacing").value), ink=document.getElementById("ink").value;
+    drawPaper(pctx,w,h,document.getElementById("paperStyle").value);
+    pctx.save(); pctx.beginPath(); pctx.rect(90,50,w-150,h-90); pctx.clip();
+    const maxX=w-130; let x=135, y=150; const lineH=size*lineMul;
+    const lines=textEl.value.replace(/\r/g,"").split("\n");
+    for(const line of lines){
+      x=135;
+      for(const ch of line){
+        if(ch===" "){x += size*.42 + spacing; continue;}
+        const g=normalizeGlyph(profile[ch]);
+        let adv;
+        if(g) adv=Math.max(size*.28,g.w*(size/g.h*.82)*.92);
+        else {pctx.font=`${Math.round(size)}px ${fallback}`; adv=Math.max(size*.28,pctx.measureText(ch).width);}
+        adv += spacing + rng(-.7,.7)*(jitter/10);
+        if(x+adv>maxX){y+=lineH;x=135;if(y>h-70)break;}
+        drawGlyph(pctx,ch,x,y,size,jitter,ink); x+=adv;
+      }
+      y+=lineH; if(y>h-70) break;
+    }
+    pctx.restore();
+  }
+
+  function updateLabels(){
+    [["size","sizeV",v=>`${v} px`],["jitter","jitterV",v=>`${v} %`],["spacing","spacingV",v=>`${v} px`],["line","lineV",v=>`${v}×`]]
+    .forEach(([a,b,fn])=>document.getElementById(a).oninput=()=>{document.getElementById(b).textContent=fn(document.getElementById(a).value);render();});
+  }
+  textEl.addEventListener("input",render);
+  ["paperStyle","ink"].forEach(id=>document.getElementById(id).addEventListener("input",()=>{if(id==="ink"){redrawDrawing();redrawFreehand();}render();}));
+  updateLabels();
+
+  document.getElementById("clear").onclick=()=>{textEl.value="";render();textEl.focus();};
+  document.getElementById("png").onclick=()=>{
+    const a=document.createElement("a"); a.download="handschrift.png"; a.href=paperEl.toDataURL("image/png"); a.click();
+  };
+  document.getElementById("print").onclick=()=>window.print();
+
+
+  // ---------- Local handwriting scanner ----------
+  const scanFile=document.getElementById('scanFile');
+  const scanCanvas=document.getElementById('scanCanvas');
+  const scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});
+  let scanImg=null;
+  const scannerChars=chars.slice();
+
+  function scanMsg(msg){ document.getElementById('scanStatus').textContent=msg; }
+  function updateScanLabels(){
+    document.getElementById('scanMarginV').textContent=document.getElementById('scanMargin').value+' %';
+    document.getElementById('scanTopV').textContent=document.getElementById('scanTop').value+' %';
+    document.getElementById('scanThresholdV').textContent=document.getElementById('scanThreshold').value;
+    document.getElementById('scanBottomV').textContent=document.getElementById('scanBottom').value+' %';
+  }
+  function drawScanPreview(){
+    if(!scanImg){
+      scanCtx.clearRect(0,0,scanCanvas.width,scanCanvas.height);
+      scanCtx.fillStyle='#fff'; scanCtx.fillRect(0,0,scanCanvas.width,scanCanvas.height);
+      scanCtx.fillStyle='#98a2b3'; scanCtx.font='700 32px system-ui'; scanCtx.textAlign='center';
+      scanCtx.fillText('Hier erscheint dein Foto',scanCanvas.width/2,scanCanvas.height/2);
+      return;
+    }
+    const maxW=1000, maxH=1414;
+    const scale=Math.min(maxW/scanImg.width,maxH/scanImg.height,1);
+    scanCanvas.width=Math.max(1,Math.round(scanImg.width*scale));
+    scanCanvas.height=Math.max(1,Math.round(scanImg.height*scale));
+    scanCtx.clearRect(0,0,scanCanvas.width,scanCanvas.height);
+    scanCtx.drawImage(scanImg,0,0,scanCanvas.width,scanCanvas.height);
+    // Show the expected grid as a visual guide.
+    const m=Number(document.getElementById('scanMargin').value)/100;
+    const top=Number(document.getElementById('scanTop').value)/100;
+    const bottom=1-Number(document.getElementById('scanBottom').value)/100;
+    const left=scanCanvas.width*m, right=scanCanvas.width*(1-m);
+    const topPx=scanCanvas.height*top, bottomPx=scanCanvas.height*bottom;
+    scanCtx.save(); scanCtx.strokeStyle='rgba(91,92,240,.75)'; scanCtx.lineWidth=1;
+    const cw=(right-left)/8, ch=(bottomPx-topPx)/12;
+    for(let i=0;i<=8;i++){scanCtx.beginPath();scanCtx.moveTo(left+i*cw,topPx);scanCtx.lineTo(left+i*cw,bottomPx);scanCtx.stroke();}
+    for(let j=0;j<=12;j++){scanCtx.beginPath();scanCtx.moveTo(left,topPx+j*ch);scanCtx.lineTo(right,topPx+j*ch);scanCtx.stroke();}
+    scanCtx.restore();
+  }
+  function scanParams(){
+    const m=Number(document.getElementById('scanMargin').value)/100;
+    return {m, top:Number(document.getElementById('scanTop').value)/100, threshold:Number(document.getElementById('scanThreshold').value)};
+  }
+  function percentile(arr,p){
+    if(!arr.length) return 255; const a=arr.slice().sort((x,y)=>x-y); return a[Math.max(0,Math.min(a.length-1,Math.floor((a.length-1)*p)))];
+  }
+  function extractRasterCell(source, sx, sy, sw, sh, thresholdDelta){
+    const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(sw)); c.height=Math.max(1,Math.round(sh));
+    const cx=c.getContext('2d',{willReadFrequently:true});
+    cx.drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);
+    const im=cx.getImageData(0,0,c.width,c.height), d=im.data;
+    const samples=[];
+    for(let y=2;y<c.height;y+=Math.max(1,Math.floor(c.height/12))) for(let x=2;x<c.width;x+=Math.max(1,Math.floor(c.width/12))){
+      const k=(y*c.width+x)*4; samples.push(.299*d[k]+.587*d[k+1]+.114*d[k+2]);
+    }
+    const bg=percentile(samples,.88);
+    const t=Math.min(245,Math.max(50,bg-thresholdDelta));
+    let minX=c.width,minY=c.height,maxX=-1,maxY=-1, count=0;
+    const alpha=new Uint8ClampedArray(c.width*c.height);
+    for(let y=0;y<c.height;y++) for(let x=0;x<c.width;x++){
+      const k=(y*c.width+x)*4; const gray=.299*d[k]+.587*d[k+1]+.114*d[k+2];
+      const a=Math.round(Math.max(0,Math.min(255,(t-gray)*4)));
+      alpha[y*c.width+x]=a;
+      if(a>36){count++; if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}
+    }
+    if(count<12 || maxX<minX || maxY<minY) return null;
+    const pad=6;
+    minX=Math.max(0,minX-pad);minY=Math.max(0,minY-pad);maxX=Math.min(c.width-1,maxX+pad);maxY=Math.min(c.height-1,maxY+pad);
+    const out=document.createElement('canvas'); out.width=Math.max(8,maxX-minX+1); out.height=Math.max(8,maxY-minY+1);
+    const od=out.getContext('2d').createImageData(out.width,out.height);
+    for(let y=minY;y<=maxY;y++) for(let x=minX;x<=maxX;x++){
+      const a=alpha[y*c.width+x]; const ok=(a>8); const k=((y-minY)*out.width+(x-minX))*4;
+      od.data[k]=0;od.data[k+1]=0;od.data[k+2]=0;od.data[k+3]=ok?a:0;
+    }
+    out.getContext('2d').putImageData(od,0,0);
+    return {type:'raster',data:out.toDataURL('image/png'),w:out.width,h:out.height};
+  }
+  function doScan(){
+    if(!scanImg){scanMsg('Bitte zuerst ein Foto auswählen.');return;}
+    const pms=scanParams(); const off=document.createElement('canvas');
+    const max=1600, sc=Math.min(max/scanImg.width,max/scanImg.height,1); off.width=Math.round(scanImg.width*sc); off.height=Math.round(scanImg.height*sc);
+    const oc=off.getContext('2d'); oc.drawImage(scanImg,0,0,off.width,off.height);
+    const left=off.width*pms.m, right=off.width*(1-pms.m), top=off.height*pms.top, bottom=off.height*(1-Number(document.getElementById('scanBottom').value)/100);
+    const cw=(right-left)/8, ch=(bottom-top)/12;
+    let saved=0, failed=[];
+    scannerChars.forEach((chText,i)=>{
+      const col=i%8,row=Math.floor(i/8);
+      const cellX=left+col*cw, cellY=top+row*ch;
+      // Only examine the handwriting zone; the character label and borders are excluded.
+      const sx=cellX+cw*.12, sy=cellY+ch*.23, sw=cw*.76, sh=ch*.64;
+      const glyph=extractRasterCell(off,sx,sy,sw,sh,pms.threshold);
+      if(glyph){profile[chText]=glyph;saved++;}
+      else failed.push(chText);
+    });
+    saveProfile(); rasterCache.clear(); makeGrid(); selectChar(selected); render();
+    const missing=failed.length?` Nicht erkannt: ${failed.slice(0,18).join(' ')}${failed.length>18?' …':''}`:'';
+    scanMsg(`${saved} von ${scannerChars.length} Zeichen erkannt und lokal gespeichert.${missing}`);
+  }
+
+  document.getElementById('template').onclick=()=>{
+    const win=window.open('','_blank');
+    if(!win){scanMsg('Der Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite.');return;}
+    const rows=[];
+    for(let i=0;i<scannerChars.length;i+=8){
+      rows.push(scannerChars.slice(i,i+8).map(ch=>`<div class="cell"><div class="label">${escapeHtml(ch)}</div><div class="write"></div></div>`).join(''));
+    }
+    win.document.write(`<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Handschrift-Vorlage</title><style>
+      *{box-sizing:border-box}html,body{margin:0;background:white;color:#111;font-family:Arial,sans-serif}.page{width:210mm;min-height:297mm;padding:7mm 7mm 5mm;margin:auto}.head h1{font-size:17px;margin:0 0 2mm}.head p{font-size:9px;margin:0 0 4mm;line-height:1.35}.grid{display:grid;grid-template-columns:repeat(8,1fr);grid-auto-rows:20mm;gap:1.2mm}.cell{border:0.35mm solid #cfd4dc;border-radius:1.2mm;padding:1mm;position:relative;overflow:hidden}.label{height:4mm;font-size:9px;color:#667085;font-weight:700}.write{height:12.5mm;border-bottom:.35mm dashed #e3e7ed}.foot{font-size:8px;color:#7b8190;margin-top:3mm}@media print{.page{margin:0}button{display:none}}button{margin:5mm 0;padding:2.5mm 4mm;border:0;border-radius:2mm;background:#4f46e5;color:white;font-weight:700}@page{size:A4 portrait;margin:0}</style></head><body><div class="page"><div class="head"><h1>Handschrift-Profil</h1><p>Schreibe jedes Zeichen genau einmal in das Feld. Nutze einen dunklen Stift und schreibe möglichst natürlich. Fotografiere danach die komplette Seite möglichst gerade und gut beleuchtet. Diese Seite enthält nur eine lokale Scan-Vorlage.</p></div><div class="grid">${rows.join('')}</div><div class="foot">Tipp: Nicht über die Rahmen schreiben. Bei Umlauten und Sonderzeichen die Zeichen vollständig in das Feld setzen.</div><button onclick="window.print()">Drucken</button></div></body></html>`);
+    win.document.close(); win.focus();
+  };
+  function escapeHtml(v){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+  scanFile.addEventListener('change',e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    const reader=new FileReader(); reader.onload=()=>{ const img=new Image(); img.onload=()=>{scanImg=img;document.getElementById('scanStart').disabled=false;drawScanPreview();scanMsg('Foto geladen. Prüfe das blaue Raster und starte die Erkennung.');}; img.src=reader.result; }; reader.readAsDataURL(f);
+  });
+  ['scanMargin','scanTop','scanBottom','scanThreshold'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{updateScanLabels();drawScanPreview();}));
+  document.getElementById('scanStart').onclick=doScan;
+  document.getElementById('scanClear').onclick=()=>{scanImg=null;scanFile.value='';document.getElementById('scanStart').disabled=true;drawScanPreview();scanMsg('Foto entfernt. Dein bereits gespeichertes Handschriftprofil bleibt erhalten.');};
+  updateScanLabels(); drawScanPreview();
+
+  // Example profile: small built-in vector glyphs, clearly labeled as demo.
+  function demoGlyph(letter){
+    const map={
+      "a":[[[10,70],[25,45],[55,45],[70,70]],[[25,58],[55,58]],[[35,45],[35,72]],[[52,45],[60,68]]],
+      "e":[[[10,58],[30,44],[58,52],[37,58],[15,58],[45,68]]],
+      "i":[[[15,48],[18,72]],[[18,36],[18,36]]],
+      "n":[[[12,70],[12,47],[33,47],[50,70]],[[50,70],[50,47]]],
+      "r":[[[12,72],[12,47],[31,47],[42,55]]],
+      "s":[[[55,47],[38,43],[17,53],[22,60],[48,64],[52,71],[31,76],[12,70]]],
+      "t":[[[35,38],[35,70]],[[12,50],[52,50]]],
+      "l":[[[35,35],[28,52],[30,74],[42,78]]],
+      "o":[[[28,46],[14,50],[12,67],[27,75],[43,69],[45,51],[28,46]]],
+      "h":[[[15,35],[15,75]],[[15,55],[32,46],[47,49],[47,75]]],
+      "u":[[[12,47],[12,69],[26,75],[42,68],[42,47]]],
+      "m":[[[10,72],[10,47],[23,46],[32,62],[42,46],[55,47],[55,72]]]
+    };
+    if(map[letter]) return map[letter];
+    const c=letter.toLowerCase().charCodeAt(0);
+    const w=18+(c%22), top=42-(c%7);
+    return [[[10,70],[15,top],[w,top+5],[w+8,70]]];
+  }
+  document.getElementById("autoSet").onclick=()=>{
+    "aenrstlohium".split("").forEach(ch=>profile[ch]=demoGlyph(ch));
+    saveProfile();makeGrid();selectChar(selected);render();
+    document.getElementById("charStatus").textContent="Demo-Profil eingesetzt. Zeichne deine eigenen Zeichen darüber und speichere sie.";
+  };
+
+  makeGrid(); selectChar("a"); render(); redrawFreehand();
+})();
+</script>
+
+<style>
+@media print{
+  header,main>.hero,main>.grid>section:first-child,main>.security,#setup,footer{display:none!important}
+  body{background:#fff}
+  main{margin:0;padding:0;max-width:none}
+  .grid{display:block}
+  .grid>section:last-child{border:0;box-shadow:none;padding:0}
+  .previewWrap{padding:0;background:#fff}
+  canvas#paper{width:210mm;height:297mm;box-shadow:none}
+  @page{size:A4 portrait;margin:0}
+}
+</style>
+</body>
+</html>
