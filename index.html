@@ -512,7 +512,3 @@ setAppDownloads();initPrivacyGate();renderFeedbackList();applyPrefs();restoreTex
 </script>
 </body>
 </html>
-create policy "Only permanent users can post to the news feed"
-on news_feed as restrictive for insert
-to authenticated
-with check ((select (auth.jwt()->>'is_anonymous')::boolean) is false );
