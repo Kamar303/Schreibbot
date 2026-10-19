@@ -1,5 +1,5 @@
-/* Handschrift PWA service worker – v31 Arcade-Coins, Stop-Animation und Handschrift-Autosave. */
-const CACHE_NAME='handschrift-pwa-v31';
+/* Handschrift PWA service worker – v32 Slot-Animation, optionale Checkliste und Spielzeit-Check-in. */
+const CACHE_NAME='handschrift-pwa-v32';
 const CORE_FILES=['./','./index.html','./goodnotes-template.js','./manifest.webmanifest','./register-sw.js','./apple-touch-icon.png','./favicon-32.png','./icon-192.png','./icon-512.png','./datenschutz.html','./impressum.html','./supabase_slot_machine_setup.sql','./supabase_slot_machine_setup.txt','./supabase_slot_machine_update_v30.sql','./supabase_slot_machine_update_v30.txt','./supabase_slf_autosave_handwriting_v30.sql','./supabase_slf_autosave_handwriting_v30.txt'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(CORE_FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('handschrift-pwa-')&&k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
