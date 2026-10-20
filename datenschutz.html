@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0877d9">
+<title>Datenschutzerklärung – Handschrift.</title>
+<style>
+:root{--ink:#172033;--muted:#667085;--line:#e4e7ec;--accent:#6757e8;--soft:#f7f7ff}*{box-sizing:border-box}body{margin:0;background:#f5f6fb;color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:900px;margin:0 auto;padding:28px 18px 50px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 8px 28px rgba(16,24,40,.06);padding:24px}h1{margin:0 0 8px;font-size:clamp(30px,6vw,48px);letter-spacing:-.05em}h2{margin:26px 0 8px;font-size:21px}h3{margin:20px 0 6px;font-size:16px}p,li{font-size:14px;line-height:1.7;color:#4f5868}ul{padding-left:22px}.note{margin:14px 0;padding:13px 14px;background:#fff8e8;border:1px solid #f0d99d;border-radius:12px;color:#6f560f;font-size:13px;line-height:1.6}.ok{margin:14px 0;padding:13px 14px;background:#f4fff9;border:1px solid #d4efdf;border-radius:12px;color:#276c4b;font-size:13px;line-height:1.6}.meta{font-size:12px;color:var(--muted)}a{color:#4339b2;font-weight:800}code{background:#f2f4f7;padding:2px 5px;border-radius:5px}footer{margin-top:24px;text-align:center;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body><main><div class="card">
+<h1>Datenschutzerklärung</h1>
+<p class="meta">für Handschrift. · Stand: 09.10.2026 – Feedback-Datenbank ergänzt</p>
+<div class="note"><strong>Wichtig vor der Veröffentlichung:</strong> Diese Datenschutzerklärung berücksichtigt die lokale Handschrift-Funktion, den zentralen Besuchszähler und die optionale öffentliche Feedback-Funktion über Supabase. Vor Veröffentlichung müssen die Angaben in eckigen Klammern anhand der tatsächlichen Einstellungen ergänzt und geprüft werden. Besonders wichtig sind Verantwortlicher, Kontakt, Hosting-Anbieter, Supabase-Projektregion und tatsächliche Speicherfristen. Diese Vorlage ist keine Rechtsberatung.</div>
+
+<h2>1. Verantwortlicher</h2>
+<p>Verantwortlich für die Verarbeitung personenbezogener Daten im Zusammenhang mit Handschrift. ist:</p>
+<p><strong>[Vor- und Nachname / Firmenname]</strong><br>[Straße und Hausnummer]<br>[PLZ und Ort]<br>[Land]<br>E-Mail: <a href="mailto:[E-Mail-Adresse]">[E-Mail-Adresse]</a></p>
+
+<h2>2. Was Handschrift. macht</h2>
+<p>Handschrift. ist ein Handschrift-Generator. Texte, selbst gezeichnete Buchstaben, gespeicherte Wörter und die Verarbeitung von importierten Handschrift-Fotos erfolgen grundsätzlich auf dem Gerät des Nutzers. Die enthaltene Web-App enthält keine eigenen Analytics-Skripte und keine Werbe-SDKs. Für die ausdrücklich beschriebene zentrale Besuchszahl wird ein einfacher externer Zählerdienst verwendet.</p>
+<div class="ok"><strong>Kein Handschrift-Upload:</strong> Die App sendet die vom Nutzer gezeichneten oder gescannten Handschrift-Daten nicht an einen von Handschrift. betriebenen Server.</div>
+
+<h2>3. Lokal gespeicherte Daten</h2>
+<p>Die Web-App verwendet den Browser-/WebView-Speicher (<code>localStorage</code>) für Funktionen, die der Nutzer ausdrücklich verwendet. Gespeichert werden können insbesondere:</p>
+<ul>
+<li>das eigene Handschrift-Profil mit Buchstaben und gespeicherten Wörtern,</li>
+<li>persönliche Einstellungen wie Papier, Schreibart, Schriftgröße oder Tinte,</li>
+<li>vom Nutzer eingegebene Texte und weitere angelegte Textseiten, damit die Arbeit bei einem späteren Besuch auf demselben Gerät weitergeführt werden kann,</li>
+<li>die lokale Bestätigung dieser Datenschutzhinweise,</li>
+<li>ein lokaler Nutzungszähler, die lokale Bestätigung des Datenschutzdialogs und Feedback-Entwürfe sowie die lokal gespeicherte anonyme Supabase-Sitzung für eigene veröffentlichte Feedback-Beiträge, wenn du diese Funktion verwendest.</li>
+</ul>
+<p>Diese Daten bleiben lokal, solange du Feedback nur als Entwurf speicherst. Wenn du „Auf Website veröffentlichen“ auswählst, werden Kategorie, Titel und Text an das konfigurierte Supabase-Projekt übermittelt. Je nach technischer Konfiguration verarbeitet der Dienst außerdem Authentifizierungsdaten einer anonymen Sitzung sowie technische Verbindungs- und Protokolldaten. Lokale Feedback-Entwürfe können in der Feedbackliste bearbeitet oder gelöscht werden; alle lokalen Entwürfe lassen sich außerdem durch Löschen des Website-/App-Speichers entfernen.</p>
+<p><strong>Download-Exporte:</strong> PNG-Bilder und die Markdown-Datei für Apple Notes werden erst auf ausdrücklichen Klick im Browser bzw. in der App lokal erstellt und heruntergeladen. Die Markdown-Datei enthält den eingegebenen Text und die Textseiten im editierbaren Format und kann in unterstützten Apple-Notes-Versionen importiert werden; ihr Inhalt wird dafür nicht an einen Handschrift-Server gesendet. Bei „Drucken / PDF“ wird der systemeigene Druckdialog verwendet.</p>
+
+<h2>4. Zentrale Website-Besuchszahl</h2>
+<p>Die Website zeigt zusätzlich eine <strong>zentrale Gesamtzahl von Seitenaufrufen</strong>. Dafür wird nach Zustimmung im Datenschutzdialog eine Anfrage an den externen Dienst <strong>CountAPI</strong> unter <code>countapi.mileshilliard.com</code> gesendet. Der von Handschrift. verwendete Zählerschlüssel enthält keine Namen, E-Mail-Adressen oder Handschrift-Inhalte. Die CountAPI-Dokumentation beschreibt den Dienst als einfache API zum Zählen von Seitenaufrufen; die für Handschrift. verwendete Zählzahl ist öffentlich abrufbar, wenn der Zählerschlüssel bekannt ist.</p>
+<p>Beim Zugriff auf den externen Zählerdienst können dessen technische Server- und Verbindungsdaten anfallen, beispielsweise die IP-Adresse des zugreifenden Anschlusses. Hierzu gelten zusätzlich die Informationen und Bedingungen des externen Anbieters. Die Website sendet keine Texte, Zeichnungen oder Scanbilder an CountAPI.</p>
+<p>Wird der Datenschutzdialog mit „Ohne Zähler starten“ verlassen, wird der zentrale Zähler für diese Sitzung nicht aufgerufen.</p>
+
+<h2>5. Lokaler Nutzungszähler</h2>
+<p>Zusätzlich kann ein <strong>lokaler Nutzungszähler</strong> auf dem Gerät geführt werden. Dieser Wert wird nur im lokalen Browser-/App-Speicher gespeichert und nicht an Handschrift. übertragen.</p>
+
+<h2>6. IP-Adresse und Server-Logs bei der Website</h2>
+<p>Beim normalen Aufruf einer öffentlich im Internet gehosteten Website erhält der technische Hosting-Anbieter die für die Übertragung erforderlichen Verbindungsdaten. Je nach Konfiguration des Hosters können dazu insbesondere die IP-Adresse, Zeitpunkt des Zugriffs, angeforderte Ressource, Referrer sowie Angaben zum verwendeten Browser und Gerät gehören. Die EU-Kommission nennt die IP-Adresse ausdrücklich als personenbezogenes Datum.</p>
+<p>Handschrift. selbst enthält in der Web-App keinen Code, der diese Server-Logs abruft oder mit den Handschrift-Inhalten zusammenführt. Ob und wie lange der Hoster Logs speichert, richtet sich nach dem konkret eingesetzten Hosting-Dienst und dessen Konfiguration. Vor dem Livegang sind hier die tatsächlichen Angaben einzusetzen:</p>
+<ul>
+<li>Hosting-Anbieter: <strong>[Name des Hosters]</strong></li>
+<li>Serverstandort / Verarbeitungsort: <strong>[Angabe]</strong></li>
+<li>Zweck und Rechtsgrundlage der Log-Verarbeitung: <strong>[Angabe des Hosters/Betreibers]</strong></li>
+<li>Speicherdauer: <strong>[Angabe des Hosters/Betreibers]</strong></li>
+</ul>
+
+<h2>7. Cookies und ähnliche Technologien</h2>
+<p>Handschrift. setzt in der enthaltenen Version keine eigenen Tracking-Cookies und bindet keine Werbe- oder Analyse-Cookies ein. Für lokale Einstellungen und das Handschrift-Profil wird <code>localStorage</code> statt eines Cookies verwendet. Das ist technisch etwas anderes als ein Cookie. Nach dem deutschen TDDDG kann für den Zugriff auf Informationen im Endgerät eine Einwilligung erforderlich sein; für Informationen, die unbedingt erforderlich sind, um den ausdrücklich gewünschten digitalen Dienst bereitzustellen, sieht § 25 Abs. 2 Nr. 2 TDDDG eine Ausnahme vor.</p>
+<p>Der beim ersten Start angezeigte Datenschutzhinweis ist deshalb als transparente Information über die lokale Speicherung eingebaut. Falls später Analytics, Werbung, externe Widgets oder nicht notwendige Cookies hinzukommen, muss die Implementierung und Datenschutzerklärung angepasst werden.</p>
+
+<h2>8. Kamera und Bilder</h2>
+<p>Der Scanner wird nur gestartet, wenn der Nutzer selbst ein Foto aufnimmt oder ein Bild auswählt. Das Bild wird innerhalb der App lokal verarbeitet. Es wird nicht von der App an Handschrift. hochgeladen.</p>
+
+<h2>9. Externe Links und öffentliche Feedbackliste</h2>
+<p>In der App gibt es einen externen Link zu YouTube (Kamar303). Die öffentliche Feedbackliste verwendet Supabase als Datenbank- und Authentifizierungsdienst. Wenn du „Auf Website veröffentlichen“ auswählst, werden Kategorie, Titel und Feedbacktext über HTTPS an das konfigurierte Supabase-Projekt übermittelt und öffentlich auf Handschrift. angezeigt. Veröffentlichte Inhalte können von allen Besuchern gelesen werden. Veröffentliche deshalb keine privaten, vertraulichen oder sensiblen Angaben. Bitte gib keine privaten oder sensiblen Angaben ein; auch andere Besucher können veröffentlichte Beiträge lesen.</p>
+<p>Zum Veröffentlichen wird ohne E-Mail-Adresse eine anonyme Supabase-Sitzung angelegt. Diese Sitzung wird lokal im Browser-Speicher gehalten und über Row Level Security auf die eigenen Beiträge beschränkt. Lösche den Browser-/App-Speicher nicht, solange du deine anonym erstellten Beiträge verwalten möchtest; nach dem Löschen kann der anonyme Zugriff möglicherweise nicht wiederhergestellt werden. Anbieter: Supabase (Supabase Pte. Ltd.; siehe die aktuellen Anbieterinformationen und Datenschutzunterlagen unter https://supabase.com/legal). Die konkrete Projektregion muss vor Livegang im Supabase-Dashboard geprüft und hier eingetragen werden: <strong>[tatsächliche Supabase-Projektregion]</strong>. Die Projektregion bestimmt den Standort der primären Datenbank und Authentifizierung; sie allein garantiert jedoch nicht, dass keinerlei Verarbeitung außerhalb dieser Region stattfindet. Die tatsächlichen Speicher- und Löschfristen müssen vom Betreiber festgelegt und hier eingetragen werden: <strong>[Speicherfrist für Feedback und Authentifizierungsdaten]</strong>. Supabase kann je nach Konfiguration zusätzliche technische Protokolldaten verarbeiten. Ist keine Datenbankverbindung eingerichtet, werden keine Feedbacks öffentlich übertragen.</p>
+
+<h2>10. Rechtsgrundlagen und Interessen</h2>
+<p>Soweit personenbezogene Daten durch den technischen Betrieb einer Website verarbeitet werden, richten sich Rechtsgrundlage und konkrete Speicherdauer nach dem jeweiligen Verarbeitungsvorgang und der tatsächlichen Hosting-Konfiguration. Für notwendige technische Bereitstellung können je nach Fall gesetzliche Erlaubnistatbestände wie Art. 6 Abs. 1 lit. b oder f DSGVO einschlägig sein. Nicht notwendige Analyse-/Werbeverarbeitungen werden in dieser Version nicht eingesetzt.</p>
+
+<h2>11. Empfänger</h2>
+<p>Für die lokal ausgeführten Handschrift-Funktionen werden keine Handschrift-Zeichnungen an Dritte übermittelt. Bei einer Veröffentlichung erhält Supabase die eingegebenen Feedbackdaten und verarbeitet die für Authentifizierung und Verbindung erforderlichen Daten. Supabase stellt einen Auftragsverarbeitungsvertrag (DPA) bereit; der Betreiber muss prüfen, ob dieser für den konkreten Einsatz abgeschlossen bzw. akzeptiert werden muss. Technische Dienstleister, insbesondere der Hosting-Anbieter, können Verbindungsdaten verarbeiten. Hosting-Anbieter: <strong>[tatsächlichen Hoster eintragen]</strong>. Supabase-Projektregion: <strong>[im Dashboard prüfen und eintragen]</strong>.</p>
+
+<h2>12. Deine Rechte</h2>
+<p>Nach den gesetzlichen Voraussetzungen bestehen insbesondere Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch gegen bestimmte Verarbeitungen und Datenübertragbarkeit. Du hast außerdem das Recht, dich bei einer Datenschutzaufsichtsbehörde zu beschweren.</p>
+
+<h2>13. Datensicherheit</h2>
+<p>Die Web-App enthält keine externen JavaScript-Bibliotheken. Für den zentralen Besuchszähler ist eine Verbindung zum CountAPI-Zählerdienst freigeschaltet; wenn die öffentliche Feedbackliste eingerichtet ist, wird zusätzlich eine Verbindung zum konfigurierten Supabase-Projekt benötigt; Handschrift-Daten werden über diese Verbindung nicht übertragen. Bei einer öffentlichen Website sollte zusätzlich nur HTTPS eingesetzt werden und der konkrete Hoster sollte auf sichere Serverkonfigurationen geprüft werden.</p>
+
+<h2>14. Öffentliche App-Downloadzahl</h2>
+<p>Unterhalb des Scanners wird eine öffentliche <strong>App-Downloadzahl</strong> angezeigt. Diese Zahl wird nicht vom Gerät eines einzelnen Besuchers erhoben. Sie wird vom Betreiber als zusammengefasster Wert aus den offiziellen Store-Statistiken übernommen und manuell aktualisiert. Google Play stellt dafür unter anderem die kumulative Gesamtzahl der Installationen im Bereich App-Statistiken bereit.</p>
+
+<h2>15. Änderungen</h2>
+<p>Diese Datenschutzerklärung kann angepasst werden, wenn sich Funktionen, Hosting, Anbieter oder rechtliche Vorgaben ändern.</p>
+
+<div class="note"><strong>Vor Livegang erledigen:</strong> Verantwortlichen und Kontakt eintragen · tatsächlichen Website-Hoster und dessen Log-Daten ergänzen · Supabase-Projektregion prüfen und eintragen · konkrete Speicher-/Löschfristen festlegen · erforderliche Auftragsverarbeitung mit Supabase prüfen · Impressum ergänzen · falls weitere externe Dienste hinzukommen, Datenschutzerklärung und Einwilligungslogik erneut prüfen.</div>
+
+<footer><a href="index.html">← zurück zu Handschrift.</a> · <a href="impressum.html">Impressum</a></footer>
+</div></main></body></html>
