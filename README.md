@@ -2,9 +2,11 @@
 
 ## Installieren
 1. ZIP entpacken.
-2. **Alle Dateien** aus dem Ordner in das Hauptverzeichnis (Root) deines GitHub-Repositories hochladen und gleichnamige Dateien ersetzen.
-3. Prüfe, dass `index.html`, `goodnotes-template.js`, `service-worker.js`, `register-sw.js` und `manifest.webmanifest` direkt im Root liegen.
-4. Nach dem GitHub-Pages-Deployment die installierte Website vollständig schließen und wieder öffnen. Der Service-Worker-Cache wurde auf `handschrift-pwa-v21` erhöht.
+2. **Alle Dateien direkt aus dem entpackten Ordner** in das Hauptverzeichnis (Root) deines GitHub-Repositories hochladen und gleichnamige Dateien ersetzen. Nicht den übergeordneten Ordner `Schreibbot-main` als Unterordner hochladen.
+3. Prüfe, dass `index.html`, `goodnotes-template.js`, `service-worker.js`, `register-sw.js` und `manifest.webmanifest` direkt im Repository-Root liegen.
+4. Warte auf ein erfolgreiches GitHub-Pages-Deployment. Der Service-Worker-Cache dieser Version ist `handschrift-pwa-v36`. Schließe die installierte Website danach vollständig und öffne sie neu.
+
+**Wichtig zur APK:** `app-release.apk` ist in diesem Paket die ältere APK. Sie enthält nicht den aktuellen Website-Code und wird durch GitHub-Pages-Updates nicht neu gebaut. Für eine aktuelle APK ist das Android-Projekt nötig und muss separat aktualisiert und neu gebaut werden.
 
 `app-release.apk` ist die bisherige APK und wurde durch dieses Website-Paket nicht neu gebaut. Für eine native Android-App muss das Android-Studio-Projekt separat aktualisiert und neu gebaut werden.
 
@@ -267,3 +269,8 @@ Ein lokaler Browser-Export mit Beispieltext wurde erzeugt und die `.goodnotes`-Z
 - Vor dem ersten Öffnen der Slotmaschine pro Seitenaufruf erscheint ein Hinweis: reine Glückssimulation, zufällige Ergebnisse, virtuelle nicht kaufbare Coins ohne Geldwert, keine Auszahlung; dazu ein klarer Pausenhinweis.
 - Die Gestaltung bleibt unterhaltsam, verwendet aber keine Serienboni, künstlichen Zeitdruck oder Belohnungen fürs Weiterspielen. Es bleibt bei kostenlosen Spins und rein virtuellen Punkten.
 - Geänderte Website-Dateien: `index.html` und `service-worker.js`. Der Service-Worker-Cache ist auf `handschrift-pwa-v35` erhöht, damit die PWA die Aktualisierung laden kann. Supabase-SQL muss für diese Änderungen nicht erneut ausgeführt werden.
+
+
+## v36 – Fehlerhafte Service-Worker-Vorabliste korrigiert
+
+Der vorherige Service Worker hat drei `.txt`-Dateien vorab cachen wollen, die im Paket nicht vorhanden waren. Weil `cache.addAll()` bei einer fehlenden Datei die gesamte Installation abbricht, konnte die neue PWA-Version steckenbleiben. v36 beschränkt die Vorabliste auf tatsächlich vorhandene Dateien, die zum Start der Website gebraucht werden, und entfernt alte `handschrift-pwa-*`-Caches nach erfolgreicher Aktivierung. Die Supabase-Migrationsdateien werden dadurch nicht automatisch ausgeführt; sie sind nur für ihre jeweiligen Online-/Speicherfunktionen erforderlich.
