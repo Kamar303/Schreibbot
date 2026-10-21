@@ -1,2 +1,0 @@
-// HTTPS/GitHub Pages: register and explicitly check for updates so installed home-screen PWAs pick up new releases.
-if(location.protocol==='https:'&&'serviceWorker' in navigator){window.addEventListener('load',async()=>{try{const registration=await navigator.serviceWorker.register('./service-worker.js',{scope:'./',updateViaCache:'none'});registration.update().catch(error=>console.warn('PWA-Updateprüfung fehlgeschlagen:',error));}catch(error){console.warn('Offline-App konnte nicht aktiviert werden:',error);}});}
