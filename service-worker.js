@@ -1,5 +1,5 @@
-/* Schreibbot PWA service worker · v54 SEO */
-const CACHE_NAME = 'schreibbot-app-v54';
+/* Schreibbot PWA service worker · v57 fixed reel strips and payline */
+const CACHE_NAME = 'schreibbot-app-v57';
 const APP_SHELL = [
   './',
   './index.html',
