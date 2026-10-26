@@ -1,0 +1,37 @@
+{
+  "id": "./",
+  "name": "Schreibbot – Handschrift-Generator",
+  "short_name": "Schreibbot",
+  "description": "Schreibbot ist ein kostenloser Online-Handschrift-Generator. Erstelle Texte in deiner Handschrift und exportiere Seiten als PDF oder PNG.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f6fb",
+  "theme_color": "#0877d9",
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
