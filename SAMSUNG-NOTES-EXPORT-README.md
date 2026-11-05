@@ -1,17 +1,21 @@
-# Handschrift – Samsung Notes Native Export (Beta)
+# Schreibbot – native Exporte für Samsung Notes und Goodnotes
 
-This release adds a **Samsung Notes `.sdocx` export** button to the page. It writes separate Samsung S-Pen stroke objects instead of flattening the output into a PNG or PDF.
+## Samsung Notes
 
-## How to test
-1. Deploy the website version to GitHub Pages (HTTPS), or open the installed web app where file download support is available.
-2. Enter a short text (for example `Hallo`).
-3. Select the regular system font or your saved-handwriting option and click **Samsung Notes – radierbare Stiftstriche (.sdocx)**.
-4. Import `Handschrift-Samsung-Notes-radierbar.sdocx` into Samsung Notes.
-5. Try the normal eraser on one of the generated letters.
+Der Export erzeugt eine `.sdocx`-Datei mit einzelnen nativen S-Pen-Stiftobjekten. Schriftzüge sowie Linien-, Raster- und Punkthilfen werden nicht zu einem einzigen Seitenbild zusammengefügt. Die Schriftpfade behalten ihre Koordinaten auf dem gewählten Papierformat.
 
-## Important limitations
-- The source code and generated package structure were checked, including ZIP integrity and native stroke-object records. The final app import/eraser test has **not** been run in this environment; it must be confirmed on your Samsung device.
-- Common system fonts are converted to approximate centerline strokes to make them erasable. These paths can look slightly different from the rendered font. Saved vector handwriting uses its saved paths directly.
-- The selected paper background color is carried over. Printed rules/grid lines are not currently embedded as a page bitmap, because that would be separate from the native stroke layer.
-- PNG and PDF exports remain available as before; those are flattened exports and their generated text is not individually erasable as handwriting.
-- Goodnotes export is not included in this change.
+## Goodnotes
+
+Der native Export erzeugt eine `.goodnotes`-Datei mit einzelnen Vektor-Stiftstrichen. Für einen optisch genauen Import gibt es zusätzlich einen PDF-Fallback. Der PDF-Fallback ist eine flache Seite und nicht buchstabenweise radierbar.
+
+## Papierformate und Regler
+
+Bei jedem nativen Goodnotes- oder Samsung-Notes-Export erscheint eine Auswahl für DIN A3, DIN A4, DIN A5, DIN B5, DIN A6 oder US Letter sowie Hoch- oder Querformat. Die Seite wird für das ausgewählte Format neu aufgebaut. Übernommen werden unter anderem Schriftgröße, Stiftdicke, Zeilenabstand, Buchstaben- und Wortabstand, Seitenränder, Einzug, Natürlichkeit, Höhenvariation, Papierstil und Papierfarbe. Die nativen Strichbreiten werden zusammen mit der Schriftgröße und der gewählten Stiftdicke skaliert.
+
+## PNG und PDF
+
+Der PNG-Export lädt alle Seiten in **einer ZIP-Datei** herunter; jede Seite liegt darin als eigene PNG-Datei. Der PDF-Export erstellt eine mehrseitige PDF-Datei. PNG und PDF sind flache Bild-/Dokumentexporte und enthalten keine einzeln radierbaren Stiftobjekte.
+
+## Import und Geräteprüfung
+
+Die ZIP-/Seitenstruktur und die nativen Strichdatensätze werden im Exportcode validiert. Ein endgültiger Import- und Radier-Test in Goodnotes und Samsung Notes konnte in dieser Entwicklungsumgebung nicht auf einem echten Tablet durchgeführt werden. Bitte importiere die erzeugte native Datei einmal in deiner jeweiligen App und prüfe dort das Radieren.
