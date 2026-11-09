@@ -1,0 +1,1 @@
+Schreibbot v87: Automatische Kombination aus deutscher Handschrifterkennung und Tesseract pro Zeile, farbunabhängige RGB-Kontrastsegmentierung, OCR für Druckschrift und Sonderzeichen, Unicode-NFC-Normalisierung. Die vorhandene Oberfläche bleibt unverändert; der Standardmodus für deutsche Handschrift verwendet nun beide Erkenner. Installationsdetails: IMPORT-HANDSCHRIFT-v87.md.
