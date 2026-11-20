@@ -1,0 +1,6 @@
+project_id = "kbortjvyzdondlzpkxyj"
+
+[functions.dub-transcode-request]
+# The function performs its own session check against Supabase Auth.
+# Disabling gateway verification also lets browser CORS preflight reach OPTIONS.
+verify_jwt = false
