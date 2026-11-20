@@ -1,6 +1,7 @@
+
 name: Dub Together – kostenlose MP4-Kompatibilisierung
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       room_code:
@@ -44,8 +45,7 @@ jobs:
           SUPABASE_URL="${SUPABASE_URL%/}"
           SUPABASE_API_KEY="${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
           AUTH_HEADERS=(-H "apikey: $SUPABASE_API_KEY")
-          # New sb_secret_* keys must be sent only in the apikey header.
-          # Legacy service_role JWTs also work in Authorization for older projects.
+
           if [[ "$SUPABASE_API_KEY" == eyJ* ]]; then
             AUTH_HEADERS+=(-H "Authorization: Bearer $SUPABASE_API_KEY")
           fi
@@ -57,7 +57,7 @@ jobs:
           report_failure() {
             local exit_code=$?
             if [[ "$SUCCESS" != "1" && -n "${SUPABASE_URL:-}" && -n "${SUPABASE_API_KEY:-}" ]]; then
-              local error_text="GitHub-Transcodierung fehlgeschlagen (Exit-Code ${exit_code}). Öffne den fehlgeschlagenen GitHub-Actions-Lauf für Details."
+              local error_text="GitHub-Transcodierung fehlgeschlagen (Exit-Code ${exit_code})."
               local payload
               payload="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg error "$error_text" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_success:false,p_error:$error}')"
               curl --silent --show-error --max-time 20 \
@@ -71,35 +71,54 @@ jobs:
           trap report_failure ERR
 
           if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_API_KEY" ]]; then
-            echo "GitHub Secrets SUPABASE_URL und/oder SUPABASE_SECRET_KEY fehlen."
+            echo "Supabase Secrets fehlen."
             false
           fi
-          if [[ ! "$ROOM_CODE" =~ ^[A-Z0-9]{6}$ ]]; then echo "Ungültiger Raumcode."; false; fi
-          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* ]]; then echo "Ungültige Speicherpfade."; false; fi
-          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* ]]; then echo "Ungültiger Pfad."; false; fi
 
-          echo "FFmpeg wird auf dem GitHub-Runner vorbereitet …"
+          if [[ ! "$ROOM_CODE" =~ ^[A-Z0-9]{6}$ ]]; then
+            echo "Ungültiger Lobby-Code."
+            false
+          fi
+
+          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* ]]; then
+            echo "Ungültige Speicherpfade."
+            false
+          fi
+
+          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* ]]; then
+            echo "Ungültiger Pfad."
+            false
+          fi
+
+          echo "FFmpeg wird vorbereitet …"
           if ! command -v ffmpeg >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y ffmpeg
           fi
+
           ffmpeg -version | head -n 1
 
           SOURCE_ENCODED="$(encode_path "$ORIGINAL_PATH")"
           TARGET_ENCODED="$(encode_path "$PLAYBACK_PATH")"
+
           mkdir -p "$RUNNER_TEMP/dub-video"
           INPUT_FILE="$RUNNER_TEMP/dub-video/original-source"
           OUTPUT_FILE="$RUNNER_TEMP/dub-video/playback-compatible.mp4"
 
-          echo "Original wird aus dem privaten Supabase-Speicher geladen …"
+          echo "Original wird heruntergeladen …"
+
           curl --fail-with-body --silent --show-error --retry 2 --max-time 180 \
             "$SUPABASE_URL/storage/v1/object/dub-media/$SOURCE_ENCODED" \
             "${AUTH_HEADERS[@]}" \
             -o "$INPUT_FILE"
 
-          if [[ ! -s "$INPUT_FILE" ]]; then echo "Die Originaldatei ist leer."; false; fi
+          if [[ ! -s "$INPUT_FILE" ]]; then
+            echo "Die Originaldatei ist leer."
+            false
+          fi
 
-          echo "Video wird auf H.264 Baseline + AAC-LC standardisiert …"
+          echo "Video wird konvertiert …"
+
           ffmpeg -hide_banner -loglevel error -y -i "$INPUT_FILE" \
             -map 0:v:0 -map '0:a:0?' \
             -vf "fps=30,scale=w='if(gte(iw,ih),min(iw,1280),min(iw,720))':h='if(gte(iw,ih),min(ih,720),min(ih,1280))':force_original_aspect_ratio=decrease:force_divisible_by=2" \
@@ -109,25 +128,38 @@ jobs:
             -movflags +faststart -max_muxing_queue_size 2048 \
             "$OUTPUT_FILE"
 
-          if [[ ! -s "$OUTPUT_FILE" ]]; then echo "FFmpeg hat keine MP4-Datei erzeugt."; false; fi
+          if [[ ! -s "$OUTPUT_FILE" ]]; then
+            echo "FFmpeg hat keine MP4-Datei erzeugt."
+            false
+          fi
+
           OUTPUT_SIZE="$(stat -c %s "$OUTPUT_FILE")"
           MAX_SIZE=$((45 * 1024 * 1024))
+
           if (( OUTPUT_SIZE > MAX_SIZE )); then
-            echo "Die kompatible MP4 ist größer als das Supabase-Lobby-Limit von 45 MiB (${OUTPUT_SIZE} Bytes)."
+            echo "Die kompatible MP4 ist größer als 45 MiB."
             false
           fi
 
           VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,pix_fmt -of csv=p=0 "$OUTPUT_FILE")"
+
           AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT_FILE" | head -n 1 || true)"
-          echo "Video-Codec und Pixel-Format: $VIDEO_CODEC"
-          echo "Audio-Codec: ${AUDIO_CODEC:-keine Audiospur}"
+
+          echo "Video: $VIDEO_CODEC"
+          echo "Audio: ${AUDIO_CODEC:-keine Audiospur}"
+
           if [[ "$VIDEO_CODEC" != *"h264"* || "$VIDEO_CODEC" != *"yuv420p"* ]]; then
-            echo "Die erzeugte Datei hat nicht das erwartete H.264/yuv420p-Profil."
+            echo "Inkompatibles Ausgabeformat."
             false
           fi
-          if [[ -n "$AUDIO_CODEC" && "$AUDIO_CODEC" != "aac" ]]; then echo "Die Audiospur ist nicht AAC."; false; fi
 
-          echo "Kompatible Wiedergabe-MP4 wird privat in Supabase gespeichert …"
+          if [[ -n "$AUDIO_CODEC" && "$AUDIO_CODEC" != "aac" ]]; then
+            echo "Die Audiospur ist nicht AAC."
+            false
+          fi
+
+          echo "Kompatible MP4 wird hochgeladen …"
+
           curl --fail-with-body --silent --show-error --retry 2 --max-time 180 \
             -X POST "$SUPABASE_URL/storage/v1/object/dub-media/$TARGET_ENCODED" \
             "${AUTH_HEADERS[@]}" \
@@ -135,8 +167,10 @@ jobs:
             -H 'x-upsert: true' \
             --data-binary "@$OUTPUT_FILE"
 
-          echo "Lobby wird auf die kompatible Wiedergabe-Datei umgestellt …"
+          echo "Lobby wird aktualisiert …"
+
           PAYLOAD="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_success:true,p_error:null}')"
+
           curl --fail-with-body --silent --show-error --max-time 30 \
             -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_video_transcode" \
             "${AUTH_HEADERS[@]}" \
