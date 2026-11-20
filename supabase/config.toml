@@ -1,4 +1,0 @@
-project_id = "kbortjvyzdondlzpkxyj"
-
-[functions.dub-transcode-request]
-verify_jwt = true
