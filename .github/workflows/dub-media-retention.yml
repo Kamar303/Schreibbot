@@ -1,0 +1,48 @@
+name: Dub Together – Medien nach 7 Tagen löschen
+
+'on':
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Nur anzeigen, welche Dateien gelöscht würden (kein Löschen)'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Alte Lobby-Medien sicher bereinigen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Abgelaufene Dub-Medien über Supabase Storage API löschen
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_SECRET_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -Eeuo pipefail
+          SUPABASE_URL="${SUPABASE_URL%/}"
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_API_KEY" ]]; then
+            echo "SUPABASE_URL oder SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY fehlt in GitHub Actions Secrets."
+            exit 1
+          fi
+
+          BODY="$(jq -n --argjson dry_run "${DRY_RUN:-false}" '{dry_run: $dry_run}')"
+          HEADERS=(-H "apikey: $SUPABASE_API_KEY" -H 'Content-Type: application/json')
+          if [[ "$SUPABASE_API_KEY" == eyJ* ]]; then
+            HEADERS+=(-H "Authorization: Bearer $SUPABASE_API_KEY")
+          fi
+
+          echo "Starte Dub-Together-Speicherbereinigung. Testlauf: ${DRY_RUN:-false}"
+          curl --fail-with-body --silent --show-error --max-time 540 \
+            -X POST "$SUPABASE_URL/functions/v1/cleanup-dub-media" \
+            "${HEADERS[@]}" \
+            --data "$BODY"
+          echo
