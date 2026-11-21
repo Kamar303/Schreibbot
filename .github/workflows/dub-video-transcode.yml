@@ -16,6 +16,10 @@ name: Dub Together – kostenlose MP4-Kompatibilisierung
         description: Zielpfad für die kompatible MP4
         required: true
         type: string
+      ambience_path:
+        description: Zielpfad für die getrennte Hintergrundspur
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -28,8 +32,12 @@ jobs:
   transcode:
     name: MP4 serverseitig in H.264/AAC umwandeln
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
+      - name: Python 3.11 für die Audiotrennung vorbereiten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Video mit FFmpeg konvertieren und in Supabase speichern
         shell: bash
         env:
@@ -39,6 +47,7 @@ jobs:
           ROOM_CODE: ${{ inputs.room_code }}
           ORIGINAL_PATH: ${{ inputs.original_path }}
           PLAYBACK_PATH: ${{ inputs.playback_path }}
+          AMBIENCE_PATH: ${{ inputs.ambience_path }}
         run: |
           set -Eeuo pipefail
           SUCCESS=0
@@ -65,6 +74,15 @@ jobs:
                 "${AUTH_HEADERS[@]}" \
                 -H 'Content-Type: application/json' \
                 --data "$payload" || true
+              if [[ -n "${AMBIENCE_PATH:-}" ]]; then
+                local stem_payload
+                stem_payload="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg ambience "$AMBIENCE_PATH" --arg error "$error_text" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_accompaniment_path:$ambience,p_success:false,p_error:$error}')"
+                curl --silent --show-error --max-time 20 \
+                  -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_audio_stem" \
+                  "${AUTH_HEADERS[@]}" \
+                  -H 'Content-Type: application/json' \
+                  --data "$stem_payload" || true
+              fi
             fi
             exit "$exit_code"
           }
@@ -80,13 +98,18 @@ jobs:
             false
           fi
 
-          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* ]]; then
+          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* || "$AMBIENCE_PATH" != "$ROOM_CODE/clips/"* ]]; then
             echo "Ungültige Speicherpfade."
             false
           fi
 
-          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* ]]; then
+          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* || "$AMBIENCE_PATH" == *".."* ]]; then
             echo "Ungültiger Pfad."
+            false
+          fi
+
+          if [[ "$AMBIENCE_PATH" != *"-ambience.mp3" ]]; then
+            echo "Der Zielpfad für die Hintergrundspur muss auf -ambience.mp3 enden."
             false
           fi
 
@@ -100,6 +123,7 @@ jobs:
 
           SOURCE_ENCODED="$(encode_path "$ORIGINAL_PATH")"
           TARGET_ENCODED="$(encode_path "$PLAYBACK_PATH")"
+          AMBIENCE_ENCODED="$(encode_path "$AMBIENCE_PATH")"
 
           mkdir -p "$RUNNER_TEMP/dub-video"
           INPUT_FILE="$RUNNER_TEMP/dub-video/original-source"
@@ -166,6 +190,55 @@ jobs:
             -H 'Content-Type: video/mp4' \
             -H 'x-upsert: true' \
             --data-binary "@$OUTPUT_FILE"
+
+          echo "Dialogstimmen werden von Musik und Umgebungsgeräuschen getrennt …"
+          STEM_SUCCESS=0
+          STEM_ERROR="Keine separate Hintergrundspur verfügbar."
+          AUDIO_INPUT="$RUNNER_TEMP/dub-video/source-audio.wav"
+          STEM_OUTPUT="$RUNNER_TEMP/dub-video/ambience.mp3"
+          STEM_FOLDER="$RUNNER_TEMP/dub-video/separated"
+          if ffprobe -v error -select_streams a:0 -show_entries stream=index -of csv=p=0 "$INPUT_FILE" | grep -q .; then
+            if ffmpeg -hide_banner -loglevel error -y -i "$INPUT_FILE" -map 0:a:0 -vn -ac 2 -ar 44100 -c:a pcm_s16le "$AUDIO_INPUT"; then
+              if python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+                && python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet demucs \
+                && python3 -m demucs -n htdemucs --two-stems=vocals -d cpu --shifts 1 --out "$STEM_FOLDER" "$AUDIO_INPUT"; then
+                STEM_WAV="$STEM_FOLDER/htdemucs/source-audio/no_vocals.wav"
+                if [[ -s "$STEM_WAV" ]] && ffmpeg -hide_banner -loglevel error -y -i "$STEM_WAV" -vn -ac 2 -ar 44100 -c:a libmp3lame -b:a 128k "$STEM_OUTPUT"; then
+                  if [[ -s "$STEM_OUTPUT" ]] && (( $(stat -c %s "$STEM_OUTPUT") <= 47185920 )); then
+                    if curl --fail-with-body --silent --show-error --retry 2 --max-time 180 \
+                      -X POST "$SUPABASE_URL/storage/v1/object/dub-media/$AMBIENCE_ENCODED" \
+                      "${AUTH_HEADERS[@]}" \
+                      -H 'Content-Type: audio/mpeg' \
+                      -H 'x-upsert: true' \
+                      --data-binary "@$STEM_OUTPUT"; then
+                      STEM_SUCCESS=1
+                      STEM_ERROR=""
+                      echo "Separate Hintergrundspur wurde gespeichert."
+                    else
+                      STEM_ERROR="Die Hintergrundspur konnte nicht in Supabase gespeichert werden."
+                    fi
+                  else
+                    STEM_ERROR="Die getrennte Hintergrundspur ist leer oder größer als 45 MiB."
+                  fi
+                else
+                  STEM_ERROR="Demucs hat keine abspielbare Hintergrundspur erstellt."
+                fi
+              else
+                STEM_ERROR="Die KI-Stimmtrennung konnte auf dem GitHub-Runner nicht gestartet werden."
+              fi
+            else
+              STEM_ERROR="Die Originaltonspur konnte nicht für die Stimmtrennung vorbereitet werden."
+            fi
+          else
+            STEM_ERROR="Das Video enthält keine Audiospur."
+          fi
+
+          STEM_PAYLOAD="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg ambience "$AMBIENCE_PATH" --arg error "$STEM_ERROR" --argjson success "$STEM_SUCCESS" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_accompaniment_path:$ambience,p_success:$success,p_error:$error}')"
+          curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_audio_stem" \
+            "${AUTH_HEADERS[@]}" \
+            -H 'Content-Type: application/json' \
+            --data "$STEM_PAYLOAD" || echo "Warnung: Status der Hintergrundspur konnte nicht gespeichert werden."
 
           echo "Lobby wird aktualisiert …"
 
