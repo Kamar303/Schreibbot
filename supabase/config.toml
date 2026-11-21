@@ -4,3 +4,7 @@ project_id = "kbortjvyzdondlzpkxyj"
 # The function performs its own session check against Supabase Auth.
 # Disabling gateway verification also lets browser CORS preflight reach OPTIONS.
 verify_jwt = false
+
+[functions.cleanup-dub-media]
+# Called only by the scheduled GitHub workflow using the server-only apikey.
+verify_jwt = false
