@@ -62,16 +62,21 @@ Deno.serve(async (request: Request) => {
     const roomCode = String(body.room_code || '').toUpperCase();
     const originalPath = body.original_path;
     const playbackPath = body.playback_path;
-    if (!/^[A-Z0-9]{6}$/.test(roomCode) || !isSafeObjectPath(originalPath) || !isSafeObjectPath(playbackPath)) {
+    const ambiencePath = body.ambience_path;
+    if (!/^[A-Z0-9]{6}$/.test(roomCode) || !isSafeObjectPath(originalPath) || !isSafeObjectPath(playbackPath) || !isSafeObjectPath(ambiencePath)) {
       return json(400, { error: 'Lobby-Code oder Speicherpfad ist ungültig.' });
     }
 
     const originalParts = originalPath.split('/');
     const playbackParts = playbackPath.split('/');
+    const ambienceParts = ambiencePath.split('/');
     if (originalParts[0] !== roomCode || playbackParts[0] !== roomCode
+      || ambienceParts[0] !== roomCode
       || originalParts[1] !== 'clips' || playbackParts[1] !== 'clips'
-      || originalParts[2] !== user.id || playbackParts[2] !== user.id
-      || !playbackParts[3].endsWith('.mp4') || playbackPath === originalPath) {
+      || ambienceParts[1] !== 'clips'
+      || originalParts[2] !== user.id || playbackParts[2] !== user.id || ambienceParts[2] !== user.id
+      || !playbackParts[3].endsWith('.mp4') || !ambienceParts[3].endsWith('-ambience.mp3')
+      || playbackPath === originalPath || ambiencePath === originalPath || ambiencePath === playbackPath) {
       return json(403, { error: 'Du darfst nur Videos aus deinem eigenen Lobby-Upload umwandeln.' });
     }
 
@@ -93,7 +98,8 @@ Deno.serve(async (request: Request) => {
 
     const clip = room.clip || {};
     if (clip.path !== originalPath || clip.original_path !== originalPath
-      || clip.playback_path !== playbackPath || clip.playback_status !== 'preparing') {
+      || clip.playback_path !== playbackPath || clip.playback_status !== 'preparing'
+      || clip.audio_stems?.accompaniment_path !== ambiencePath) {
       return json(409, { error: 'Der Clip wurde inzwischen geändert. Lade die Lobby neu und versuche es erneut.' });
     }
 
@@ -106,7 +112,7 @@ Deno.serve(async (request: Request) => {
         'X-GitHub-Api-Version': '2022-11-28',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ ref, inputs: { room_code: roomCode, original_path: originalPath, playback_path: playbackPath } })
+      body: JSON.stringify({ ref, inputs: { room_code: roomCode, original_path: originalPath, playback_path: playbackPath, ambience_path: ambiencePath } })
     });
 
     if (dispatchResponse.status !== 204) {
