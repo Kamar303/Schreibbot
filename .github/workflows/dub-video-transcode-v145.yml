@@ -1,0 +1,527 @@
+name: Dub Together – MP4 und Hintergrundspur parallel verarbeiten
+
+'on':
+  workflow_dispatch:
+    inputs:
+      room_code:
+        description: Dub Together Lobby-Code
+        required: true
+        type: string
+      original_path:
+        description: Privater Originalpfad in Supabase Storage
+        required: true
+        type: string
+      playback_path:
+        description: Zielpfad für die kompatible MP4
+        required: true
+        type: string
+      ambience_path:
+        description: Zielpfad für die getrennte Hintergrundspur
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dub-video-${{ inputs.room_code }}
+  cancel-in-progress: false
+
+jobs:
+  transcode:
+    name: Video-MP4 sofort konvertieren
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Video mit FFmpeg konvertieren und in Supabase speichern
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ROOM_CODE: ${{ inputs.room_code }}
+          ORIGINAL_PATH: ${{ inputs.original_path }}
+          PLAYBACK_PATH: ${{ inputs.playback_path }}
+          AMBIENCE_PATH: ${{ inputs.ambience_path }}
+        run: |
+          set -Eeuo pipefail
+          SUCCESS=0
+          SUPABASE_URL="${SUPABASE_URL%/}"
+          SUPABASE_API_KEY="${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
+          AUTH_HEADERS=(-H "apikey: $SUPABASE_API_KEY")
+
+          if [[ "$SUPABASE_API_KEY" == eyJ* ]]; then
+            AUTH_HEADERS+=(-H "Authorization: Bearer $SUPABASE_API_KEY")
+          fi
+
+          encode_path() {
+            python3 -c 'import sys, urllib.parse; print("/".join(urllib.parse.quote(part, safe="") for part in sys.argv[1].split("/")))' "$1"
+          }
+
+          report_failure() {
+            local exit_code=$?
+            if [[ "$SUCCESS" != "1" && -n "${SUPABASE_URL:-}" && -n "${SUPABASE_API_KEY:-}" ]]; then
+              local error_text="GitHub-Transcodierung fehlgeschlagen (Exit-Code ${exit_code})."
+              local payload
+              payload="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg error "$error_text" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_success:false,p_error:$error}')"
+              curl --silent --show-error --max-time 20 \
+                -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_video_transcode" \
+                "${AUTH_HEADERS[@]}" \
+                -H 'Content-Type: application/json' \
+                --data "$payload" || true
+            fi
+            exit "$exit_code"
+          }
+          trap report_failure ERR
+
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_API_KEY" ]]; then
+            echo "Supabase Secrets fehlen."
+            false
+          fi
+
+          if [[ ! "$ROOM_CODE" =~ ^[A-Z0-9]{6}$ ]]; then
+            echo "Ungültiger Lobby-Code."
+            false
+          fi
+
+          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* ]]; then
+            echo "Ungültige Speicherpfade."
+            false
+          fi
+
+          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* ]]; then
+            echo "Ungültiger Pfad."
+            false
+          fi
+
+          if [[ "$AMBIENCE_PATH" != *"-ambience.mp3" ]]; then
+            echo "Der Zielpfad für die Hintergrundspur muss auf -ambience.mp3 enden."
+            false
+          fi
+
+          echo "FFmpeg wird vorbereitet …"
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+          ffmpeg -version | head -n 1
+
+          SOURCE_ENCODED="$(encode_path "$ORIGINAL_PATH")"
+          TARGET_ENCODED="$(encode_path "$PLAYBACK_PATH")"
+
+          mkdir -p "$RUNNER_TEMP/dub-video"
+          INPUT_FILE="$RUNNER_TEMP/dub-video/original-source"
+          OUTPUT_FILE="$RUNNER_TEMP/dub-video/playback-compatible.mp4"
+
+          echo "Original wird heruntergeladen …"
+
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 1800 \
+            "$SUPABASE_URL/storage/v1/object/dub-media/$SOURCE_ENCODED" \
+            "${AUTH_HEADERS[@]}" \
+            -o "$INPUT_FILE"
+
+          if [[ ! -s "$INPUT_FILE" ]]; then
+            echo "Die Originaldatei ist leer."
+            false
+          fi
+
+          echo "Videospuren werden geprüft, damit kein 3-Sekunden-Vorschaubild statt des ganzen Clips gewählt wird …"
+
+          VIDEO_STREAM_JSON="$(ffprobe -v error -select_streams v -show_entries stream=index,duration,duration_ts,time_base,width,height:stream_disposition=attached_pic -of json "$INPUT_FILE")"
+          VIDEO_STREAM_INDEX="$(printf '%s' "$VIDEO_STREAM_JSON" | python3 -c '
+          import json, sys
+          from fractions import Fraction
+          data = json.load(sys.stdin)
+          streams = data.get("streams", [])
+          candidates = [s for s in streams if not int(s.get("disposition", {}).get("attached_pic", 0) or 0)]
+          if not candidates:
+              raise SystemExit("Keine normale Videospur gefunden (nur Cover/Standbild oder keine Videospur).")
+          def seconds(stream):
+              try:
+                  value = float(stream.get("duration"))
+                  if value > 0:
+                      return value
+              except (TypeError, ValueError):
+                  pass
+              try:
+                  ticks = int(stream.get("duration_ts"))
+                  base = Fraction(stream.get("time_base", "0/1"))
+                  value = float(ticks * base)
+                  return value if value > 0 else 0.0
+              except (TypeError, ValueError, ZeroDivisionError):
+                  return 0.0
+          def rank(stream):
+              return (seconds(stream), int(stream.get("width", 0) or 0) * int(stream.get("height", 0) or 0))
+          print(max(candidates, key=rank)["index"])
+          ')"
+
+          SOURCE_VIDEO_DURATION="$(printf '%s' "$VIDEO_STREAM_JSON" | python3 -c '
+          import json, sys
+          from fractions import Fraction
+          data = json.load(sys.stdin)
+          streams = [s for s in data.get("streams", []) if not int(s.get("disposition", {}).get("attached_pic", 0) or 0)]
+          def seconds(stream):
+              try:
+                  value = float(stream.get("duration"))
+                  if value > 0:
+                      return value
+              except (TypeError, ValueError):
+                  pass
+              try:
+                  ticks = int(stream.get("duration_ts"))
+                  base = Fraction(stream.get("time_base", "0/1"))
+                  value = float(ticks * base)
+                  return value if value > 0 else 0.0
+              except (TypeError, ValueError, ZeroDivisionError):
+                  return 0.0
+          selected = max(streams, key=lambda stream: (seconds(stream), int(stream.get("width", 0) or 0) * int(stream.get("height", 0) or 0)))
+          print(seconds(selected))
+          ')"
+          if [[ -z "$SOURCE_VIDEO_DURATION" || "$SOURCE_VIDEO_DURATION" == "0" ]]; then
+            SOURCE_VIDEO_DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE")"
+          fi
+          python3 - "$SOURCE_VIDEO_DURATION" <<'PY_SOURCE_DURATION'
+          import math, sys
+          try:
+              duration = float(sys.argv[1])
+          except (TypeError, ValueError, IndexError):
+              raise SystemExit("Die Länge der ausgewählten Videospur konnte nicht ermittelt werden.")
+          if not math.isfinite(duration) or duration <= 0:
+              raise SystemExit("Die Länge der ausgewählten Videospur ist ungültig.")
+          if duration > 1800.5:
+              raise SystemExit("Der Clip ist länger als 30 Minuten. Teile ihn bitte in mehrere Abschnitte.")
+          print(f"Langvideo erkannt: {duration / 60:.1f} Minuten")
+          PY_SOURCE_DURATION
+
+          AUDIO_STREAM_JSON="$(ffprobe -v error -select_streams a -show_entries stream=index,duration,duration_ts,time_base,channels -of json "$INPUT_FILE")"
+          AUDIO_STREAM_INDEX="$(printf '%s' "$AUDIO_STREAM_JSON" | python3 -c '
+          import json, sys
+          from fractions import Fraction
+          data = json.load(sys.stdin)
+          streams = data.get("streams", [])
+          def seconds(stream):
+              try:
+                  value = float(stream.get("duration"))
+                  if value > 0:
+                      return value
+              except (TypeError, ValueError):
+                  pass
+              try:
+                  ticks = int(stream.get("duration_ts"))
+                  base = Fraction(stream.get("time_base", "0/1"))
+                  value = float(ticks * base)
+                  return value if value > 0 else 0.0
+              except (TypeError, ValueError, ZeroDivisionError):
+                  return 0.0
+          if streams:
+              selected = max(streams, key=lambda stream: (seconds(stream), int(stream.get("channels", 0) or 0)))
+              print(selected["index"])
+          ')"
+          FFMPEG_AUDIO_MAP=()
+          FFMPEG_AUDIO_FILTER=()
+          if [[ -n "$AUDIO_STREAM_INDEX" ]]; then
+            FFMPEG_AUDIO_MAP=(-map "0:${AUDIO_STREAM_INDEX}")
+            # Keep the audio timeline exactly aligned to the selected video:
+            # pad a shorter track with silence and trim any longer track.
+            FFMPEG_AUDIO_FILTER=(-af "apad,atrim=duration=${SOURCE_VIDEO_DURATION}")
+            echo "Ausgewählte Audiospur: Index $AUDIO_STREAM_INDEX"
+          else
+            echo "Keine Audiospur gefunden; die MP4 wird ohne Originalaudio erstellt."
+          fi
+          echo "Ausgewählte Videospur: Index $VIDEO_STREAM_INDEX · Quelle: ${SOURCE_VIDEO_DURATION}s"
+
+          echo "Video wird vollständig in H.264/AAC konvertiert. Bitrate und Auflösung werden auf die 45-MiB-Ausgabegrenze abgestimmt …"
+
+          MAX_SIZE=$((45 * 1024 * 1024))
+          TARGET_SIZE=$((43 * 1024 * 1024))
+          AUDIO_BPS=64000
+          VIDEO_BPS="$(python3 - "$SOURCE_VIDEO_DURATION" "$TARGET_SIZE" "$AUDIO_BPS" <<'PY_BITRATE'
+          import math, sys
+          duration, target_bytes, audio_bps = map(float, sys.argv[1:4])
+          total_bps = (target_bytes * 8 / duration) * 0.90
+          video_bps = int(total_bps - audio_bps - 12000)
+          if not math.isfinite(video_bps) or video_bps < 48000:
+              raise SystemExit("Für diese Länge kann keine MP4 unter der Storage-Grenze erstellt werden.")
+          print(video_bps)
+          PY_BITRATE
+          )"
+
+          ENCODED_OK=0
+          for ENCODE_ATTEMPT in 1 2; do
+            if (( VIDEO_BPS >= 900000 )); then MAX_EDGE=1280; TARGET_FPS=30
+            elif (( VIDEO_BPS >= 600000 )); then MAX_EDGE=960; TARGET_FPS=30
+            elif (( VIDEO_BPS >= 320000 )); then MAX_EDGE=720; TARGET_FPS=24
+            elif (( VIDEO_BPS >= 180000 )); then MAX_EDGE=540; TARGET_FPS=18
+            elif (( VIDEO_BPS >= 100000 )); then MAX_EDGE=480; TARGET_FPS=15
+            else MAX_EDGE=360; TARGET_FPS=15
+            fi
+            echo "Kodierung Versuch ${ENCODE_ATTEMPT}/2 · max. ${MAX_EDGE}px · ${TARGET_FPS} fps · Video ${VIDEO_BPS} bit/s · Audio ${AUDIO_BPS} bit/s"
+            ffmpeg -hide_banner -loglevel error -y -i "$INPUT_FILE" \
+              -map "0:${VIDEO_STREAM_INDEX}" "${FFMPEG_AUDIO_MAP[@]}" "${FFMPEG_AUDIO_FILTER[@]}" \
+              -vf "fps=${TARGET_FPS},scale=w='min(iw,${MAX_EDGE})':h='min(ih,${MAX_EDGE})':force_original_aspect_ratio=decrease:force_divisible_by=2" \
+              -c:v libx264 -profile:v baseline -level 3.1 -pix_fmt yuv420p \
+              -preset veryfast -b:v "${VIDEO_BPS}" -maxrate "${VIDEO_BPS}" -bufsize "$((VIDEO_BPS * 2))" \
+              -c:a aac -profile:a aac_low -b:a "$AUDIO_BPS" -ac 2 -ar 44100 \
+              -map_metadata 0 -movflags +faststart -max_muxing_queue_size 2048 \
+              "$OUTPUT_FILE"
+            if [[ ! -s "$OUTPUT_FILE" ]]; then
+              echo "FFmpeg hat keine MP4-Datei erzeugt."
+              false
+            fi
+            OUTPUT_SIZE="$(stat -c %s "$OUTPUT_FILE")"
+            if (( OUTPUT_SIZE <= MAX_SIZE )); then ENCODED_OK=1; break; fi
+            echo "Ausgabe ist noch zu groß (${OUTPUT_SIZE} Bytes). Bitrate wird reduziert und erneut kodiert …"
+            VIDEO_BPS=$((VIDEO_BPS * 78 / 100))
+            if (( VIDEO_BPS < 48000 )); then break; fi
+          done
+          if [[ "$ENCODED_OK" != "1" ]]; then
+            echo "Die MP4 bleibt auch nach automatischer Qualitätsreduzierung größer als 45 MiB."
+            false
+          fi
+
+          OUTPUT_DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$OUTPUT_FILE")"
+          python3 - "$SOURCE_VIDEO_DURATION" "$OUTPUT_DURATION" <<'PY_DURATION_CHECK'
+          import math, sys
+          try:
+              source = float(sys.argv[1])
+              output = float(sys.argv[2])
+          except (TypeError, ValueError, IndexError):
+              raise SystemExit("Die Quell- oder Ausgabelänge konnte nicht geprüft werden.")
+          if not math.isfinite(source) or not math.isfinite(output) or source <= 0 or output <= 0:
+              raise SystemExit("Die Video-Länge ist ungültig oder unbekannt.")
+          tolerance = max(1.25, source * 0.025)
+          print(f"Längenprüfung: Original {source:.2f}s · Wiedergabe-MP4 {output:.2f}s · Toleranz {tolerance:.2f}s")
+          if output + tolerance < source:
+              raise SystemExit("ABBRUCH: Die erzeugte Wiedergabe-MP4 ist deutlich kürzer als die ausgewählte Quell-Videospur. Es wird keine abgeschnittene MP4 hochgeladen.")
+          PY_DURATION_CHECK
+
+          VIDEO_CODEC="$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,pix_fmt -of csv=p=0 "$OUTPUT_FILE")"
+
+          AUDIO_CODEC="$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$OUTPUT_FILE" | head -n 1 || true)"
+
+          echo "Video: $VIDEO_CODEC"
+          echo "Audio: ${AUDIO_CODEC:-keine Audiospur}"
+
+          if [[ "$VIDEO_CODEC" != *"h264"* || "$VIDEO_CODEC" != *"yuv420p"* ]]; then
+            echo "Inkompatibles Ausgabeformat."
+            false
+          fi
+
+          if [[ -n "$AUDIO_CODEC" && "$AUDIO_CODEC" != "aac" ]]; then
+            echo "Die Audiospur ist nicht AAC."
+            false
+          fi
+
+          echo "Kompatible MP4 wird hochgeladen …"
+
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 1800 \
+            -X POST "$SUPABASE_URL/storage/v1/object/dub-media/$TARGET_ENCODED" \
+            "${AUTH_HEADERS[@]}" \
+            -H 'Content-Type: video/mp4' \
+            -H 'x-upsert: true' \
+            --data-binary "@$OUTPUT_FILE"
+
+          echo "Kompatible MP4 wurde gespeichert. Die Hintergrundspur wird parallel in einem eigenen Job verarbeitet."
+
+          PAYLOAD="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_success:true,p_error:null}')"
+          curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_video_transcode" \
+            "${AUTH_HEADERS[@]}" \
+            -H 'Content-Type: application/json' \
+            --data "$PAYLOAD"
+
+          SUCCESS=1
+          echo "Fertig: browserkompatible MP4 gespeichert."
+  separate_ambience:
+    name: Hintergrundspur gleichzeitig mit KI trennen
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Python 3.11 vorbereiten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Hintergrundton direkt aus dem Original isolieren und speichern
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ROOM_CODE: ${{ inputs.room_code }}
+          ORIGINAL_PATH: ${{ inputs.original_path }}
+          PLAYBACK_PATH: ${{ inputs.playback_path }}
+          AMBIENCE_PATH: ${{ inputs.ambience_path }}
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          OPENBLAS_NUM_THREADS: '1'
+        run: |
+          set -Eeuo pipefail
+          SUCCESS=0
+          SUPABASE_URL="${SUPABASE_URL%/}"
+          SUPABASE_API_KEY="${SUPABASE_SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
+          AUTH_HEADERS=(-H "apikey: $SUPABASE_API_KEY")
+
+          if [[ "$SUPABASE_API_KEY" == eyJ* ]]; then
+            AUTH_HEADERS+=(-H "Authorization: Bearer $SUPABASE_API_KEY")
+          fi
+
+          encode_path() {
+            python3 -c 'import sys, urllib.parse; print("/".join(urllib.parse.quote(part, safe="") for part in sys.argv[1].split("/")))' "$1"
+          }
+
+          report_failure() {
+            local exit_code=$?
+            if [[ "$SUCCESS" != "1" && -n "${SUPABASE_URL:-}" && -n "${SUPABASE_API_KEY:-}" ]]; then
+              local error_text="Die parallele KI-Hintergrundtrennung ist fehlgeschlagen (Exit-Code ${exit_code})."
+              local payload
+              payload="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg ambience "$AMBIENCE_PATH" --arg error "$error_text" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_accompaniment_path:$ambience,p_success:false,p_error:$error}')"
+              curl --silent --show-error --max-time 30 \
+                -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_audio_stem" \
+                "${AUTH_HEADERS[@]}" \
+                -H 'Content-Type: application/json' \
+                --data "$payload" || true
+            fi
+            exit "$exit_code"
+          }
+          trap report_failure ERR
+
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_API_KEY" ]]; then
+            echo "Supabase Secrets fehlen."
+            false
+          fi
+          if [[ ! "$ROOM_CODE" =~ ^[A-Z0-9]{6}$ ]]; then
+            echo "Ungültiger Lobby-Code."
+            false
+          fi
+          if [[ "$ORIGINAL_PATH" != "$ROOM_CODE/clips/"* || "$PLAYBACK_PATH" != "$ROOM_CODE/clips/"* || "$AMBIENCE_PATH" != "$ROOM_CODE/clips/"* ]]; then
+            echo "Ungültige Speicherpfade."
+            false
+          fi
+          if [[ "$ORIGINAL_PATH" == *".."* || "$PLAYBACK_PATH" == *".."* || "$AMBIENCE_PATH" == *".."* ]]; then
+            echo "Ungültiger Speicherpfad."
+            false
+          fi
+          if [[ "$AMBIENCE_PATH" != *"-ambience.mp3" ]]; then
+            echo "Der Zielpfad für die Hintergrundspur muss auf -ambience.mp3 enden."
+            false
+          fi
+
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+          python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+          python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet demucs
+
+          SOURCE_ENCODED="$(encode_path "$ORIGINAL_PATH")"
+          AMBIENCE_ENCODED="$(encode_path "$AMBIENCE_PATH")"
+          mkdir -p "$RUNNER_TEMP/dub-ambience"
+          INPUT_FILE="$RUNNER_TEMP/dub-ambience/original-source"
+          AUDIO_INPUT="$RUNNER_TEMP/dub-ambience/source-audio.wav"
+          STEM_OUTPUT="$RUNNER_TEMP/dub-ambience/ambience.mp3"
+          STEM_FOLDER="$RUNNER_TEMP/dub-ambience/separated"
+
+          echo "Hintergrundtrennung startet parallel zur MP4-Konvertierung …"
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 1800 \
+            "$SUPABASE_URL/storage/v1/object/dub-media/$SOURCE_ENCODED" \
+            "${AUTH_HEADERS[@]}" \
+            -o "$INPUT_FILE"
+          if [[ ! -s "$INPUT_FILE" ]]; then
+            echo "Die Originaldatei ist leer."
+            false
+          fi
+
+          SOURCE_VIDEO_DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE")"
+          if [[ -z "$SOURCE_VIDEO_DURATION" || "$SOURCE_VIDEO_DURATION" == "N/A" ]]; then
+            SOURCE_VIDEO_DURATION="$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 "$INPUT_FILE" | head -n 1)"
+          fi
+          python3 - "$SOURCE_VIDEO_DURATION" <<'PY_VIDEO_LENGTH'
+          import math, sys
+          try:
+              duration = float(sys.argv[1])
+          except (TypeError, ValueError, IndexError):
+              raise SystemExit("Videolänge für Hintergrundspur konnte nicht bestimmt werden.")
+          if not math.isfinite(duration) or duration <= 0 or duration > 1800.5:
+              raise SystemExit("Videolänge für Hintergrundspur ist ungültig oder überschreitet 30 Minuten.")
+          PY_VIDEO_LENGTH
+
+          AUDIO_STREAM_JSON="$(ffprobe -v error -select_streams a -show_entries stream=index,duration,duration_ts,time_base,channels -of json "$INPUT_FILE")"
+          AUDIO_STREAM_INDEX="$(printf '%s' "$AUDIO_STREAM_JSON" | python3 -c '
+          import json, sys
+          from fractions import Fraction
+          data = json.load(sys.stdin)
+          streams = data.get("streams", [])
+          def seconds(stream):
+              try:
+                  value = float(stream.get("duration"))
+                  if value > 0:
+                      return value
+              except (TypeError, ValueError):
+                  pass
+              try:
+                  ticks = int(stream.get("duration_ts"))
+                  base = Fraction(stream.get("time_base", "0/1"))
+                  value = float(ticks * base)
+                  return value if value > 0 else 0.0
+              except (TypeError, ValueError, ZeroDivisionError):
+                  return 0.0
+          if streams:
+              selected = max(streams, key=lambda stream: (seconds(stream), int(stream.get("channels", 0) or 0)))
+              print(selected["index"])
+          ')"
+
+          complete_stem() {
+            local ok="$1"
+            local message="$2"
+            local payload
+            payload="$(jq -n --arg code "$ROOM_CODE" --arg original "$ORIGINAL_PATH" --arg playback "$PLAYBACK_PATH" --arg ambience "$AMBIENCE_PATH" --arg error "$message" --argjson success "$ok" '{p_code:$code,p_original_path:$original,p_playback_path:$playback,p_accompaniment_path:$ambience,p_success:$success,p_error:$error}')"
+            curl --fail-with-body --silent --show-error --max-time 30 \
+              -X POST "$SUPABASE_URL/rest/v1/rpc/complete_dub_audio_stem" \
+              "${AUTH_HEADERS[@]}" \
+              -H 'Content-Type: application/json' \
+              --data "$payload"
+          }
+
+          if [[ -z "$AUDIO_STREAM_INDEX" ]]; then
+            complete_stem false "Das Video enthält keine Audiospur."
+            SUCCESS=1
+            echo "Keine Audiospur vorhanden; Status wurde aktualisiert."
+            exit 0
+          fi
+
+          ffmpeg -hide_banner -loglevel error -y -i "$INPUT_FILE" \
+            -map "0:${AUDIO_STREAM_INDEX}" -vn -af "apad,atrim=duration=${SOURCE_VIDEO_DURATION}" \
+            -ac 2 -ar 44100 -c:a pcm_s16le "$AUDIO_INPUT"
+
+          # Keep CPU threads controlled on the standard GitHub-hosted runner.
+          export OMP_NUM_THREADS=2
+          export MKL_NUM_THREADS=2
+          export OPENBLAS_NUM_THREADS=1
+
+          echo "Demucs trennt Stimmen und Hintergrundton. Dieser Schritt läuft unabhängig von der MP4-Konvertierung."
+          timeout --preserve-status 285m python3 -m demucs -n htdemucs --two-stems=vocals -d cpu --shifts 1 --out "$STEM_FOLDER" "$AUDIO_INPUT"
+
+          STEM_WAV="$STEM_FOLDER/htdemucs/source-audio/no_vocals.wav"
+          if [[ ! -s "$STEM_WAV" ]]; then
+            echo "Demucs hat keine abspielbare Hintergrundspur erstellt."
+            false
+          fi
+
+          ffmpeg -hide_banner -loglevel error -y -i "$STEM_WAV" -vn -ac 2 -ar 44100 -c:a libmp3lame -b:a 96k "$STEM_OUTPUT"
+          if [[ ! -s "$STEM_OUTPUT" ]] || (( $(stat -c %s "$STEM_OUTPUT") > 47185920 )); then
+            echo "Die Hintergrundspur ist leer oder größer als 45 MiB."
+            false
+          fi
+
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 1800 \
+            -X POST "$SUPABASE_URL/storage/v1/object/dub-media/$AMBIENCE_ENCODED" \
+            "${AUTH_HEADERS[@]}" \
+            -H 'Content-Type: audio/mpeg' \
+            -H 'x-upsert: true' \
+            --data-binary "@$STEM_OUTPUT"
+
+          complete_stem true ""
+          SUCCESS=1
+          echo "Hintergrundspur wurde gespeichert und ist jetzt für alle Lobby-Mitglieder verfügbar."
