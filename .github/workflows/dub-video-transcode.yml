@@ -412,8 +412,23 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
+          # Demucs and PyTorch need NumPy at runtime. Install a Python 3.11-compatible
+          # NumPy 1.x explicitly before Torch/Demucs, then verify every import.
+          python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet "numpy==1.26.4"
           python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet torch torchaudio --index-url https://download.pytorch.org/whl/cpu
           python3 -m pip install --disable-pip-version-check --no-cache-dir --quiet demucs
+
+          echo "Prüfe Python-Abhängigkeiten für die KI-Stimmtrennung …"
+          python3 - <<'PY_DEMUCS_IMPORT_CHECK'
+          import numpy
+          import torch
+          import torchaudio
+          import demucs
+          print(f"NumPy {numpy.__version__}")
+          print(f"PyTorch {torch.__version__}")
+          print(f"Torchaudio {torchaudio.__version__}")
+          print("Demucs-Import erfolgreich.")
+          PY_DEMUCS_IMPORT_CHECK
 
           SOURCE_ENCODED="$(encode_path "$ORIGINAL_PATH")"
           AMBIENCE_ENCODED="$(encode_path "$AMBIENCE_PATH")"
